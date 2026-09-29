@@ -24,17 +24,37 @@ export const wordLimitSchema = z
   .min(MIN_WORD_LIMIT)
   .max(MAX_WORD_LIMIT);
 
-export const gameSchema: z.ZodType<Game> = z.object({
-  id: identifierSchema,
-  code: z.string().trim().min(1),
-  status: gameStatusSchema,
-  hostPlayerId: identifierSchema,
-  round: z.number().int().min(0).max(MAX_ROUNDS),
-  maxRounds: z.literal(MAX_ROUNDS),
-  storySummary: z.string(),
-  pausedFrom: pausableGameStatusSchema.nullable(),
-  createdAt: isoDateTimeSchema,
-});
+export const gameSchema: z.ZodType<Game> = z
+  .object({
+    id: identifierSchema,
+    code: z.string().trim().min(1),
+    status: gameStatusSchema,
+    hostPlayerId: identifierSchema,
+    round: z.number().int().min(0).max(MAX_ROUNDS),
+    maxRounds: z.literal(MAX_ROUNDS),
+    storySummary: z.string(),
+    pausedFrom: pausableGameStatusSchema.nullable(),
+    createdAt: isoDateTimeSchema,
+  })
+  .superRefine((game, context) => {
+    const hasPausedOrigin = game.pausedFrom !== null;
+
+    if (game.status === "paused" && !hasPausedOrigin) {
+      context.addIssue({
+        code: "custom",
+        path: ["pausedFrom"],
+        message: "Uma partida pausada deve preservar a fase anterior.",
+      });
+    }
+
+    if (game.status !== "paused" && hasPausedOrigin) {
+      context.addIssue({
+        code: "custom",
+        path: ["pausedFrom"],
+        message: "A fase anterior só pode existir durante uma pausa.",
+      });
+    }
+  });
 
 export const playerSchema: z.ZodType<Player> = z.object({
   id: identifierSchema,

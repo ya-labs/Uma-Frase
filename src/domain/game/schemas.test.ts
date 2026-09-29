@@ -31,8 +31,25 @@ describe("schemas usados pelo frontend", () => {
 
   it("valida a estrutura de uma partida", () => {
     expect(gameSchema.parse(game)).toEqual(game);
+    expect(gameSchema.safeParse({ ...game, status: "unknown" }).success).toBe(
+      false,
+    );
+  });
+
+  it("valida a coerencia da fase pausada", () => {
     expect(
-      gameSchema.safeParse({ ...game, status: "unknown" }).success,
+      gameSchema.safeParse({
+        ...game,
+        status: "paused",
+        pausedFrom: "answering",
+      }).success,
+    ).toBe(true);
+    expect(
+      gameSchema.safeParse({ ...game, status: "paused", pausedFrom: null })
+        .success,
+    ).toBe(false);
+    expect(
+      gameSchema.safeParse({ ...game, pausedFrom: "answering" }).success,
     ).toBe(false);
   });
 

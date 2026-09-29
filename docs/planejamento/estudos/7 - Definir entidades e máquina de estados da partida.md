@@ -3,6 +3,10 @@
 > Guia de estudo da parte frontend desenvolvida na issue **#7 — Definir
 > entidades e máquina de estados da partida**.
 
+> **Atualização de 2026-09-29:** o domínio autoritativo descrito como pendente
+> neste estudo também foi implementado na mesma issue. A seção final registra
+> as regras adicionadas sem alterar a explicação original do frontend.
+
 ## Sumário
 
 1. [O que foi desenvolvido](#o-que-foi-desenvolvido)
@@ -16,7 +20,7 @@
 9. [Exportação do domínio](#exportação-do-domínio)
 10. [Testes automatizados](#testes-automatizados)
 11. [Fluxo futuro no frontend](#fluxo-futuro-no-frontend)
-12. [O que ficou para o backend](#o-que-ficou-para-o-backend)
+12. [Conclusão do domínio autoritativo](#conclusão-do-domínio-autoritativo)
 
 ---
 
@@ -761,22 +765,20 @@ Esse `switch` apenas escolhe a interface. Ele não muda a fase da partida.
 
 ---
 
-## O que ficou para o backend
+## Conclusão do domínio autoritativo
 
-Apesar do título da issue mencionar máquina de estados, ela ainda não foi
-implementada nesta parte frontend.
+A etapa complementar implementou as regras que permaneciam fora da entrega
+inicial do frontend:
 
-O trabalho restante inclui:
-
-- definir os eventos da partida;
-- implementar as transições permitidas;
-- recusar transições proibidas;
-- garantir exatamente dois jogadores no início;
-- controlar o avanço até oito rodadas;
-- preservar e restaurar a fase durante uma pausa;
-- decidir pontuação e vitória contra ausência;
-- não pontuar quando ambos ficam ausentes;
-- testar caminhos válidos, inválidos e invariantes.
+- eventos e transições permitidas da partida;
+- recusa explícita de transições proibidas;
+- início restrito a exatamente dois jogadores conectados;
+- avanço de rodadas e encerramento depois da oitava;
+- preservação e restauração da fase durante uma pausa;
+- vitória automática contra ausência;
+- rodada sem ponto quando ambos ficam ausentes;
+- validação do vencedor quando os dois jogadores respondem;
+- testes dos caminhos válidos, inválidos e invariantes.
 
 Essas regras pertencem ao domínio autoritativo. Mesmo que o frontend desabilite
 um botão, o servidor precisa validar novamente a ação recebida.
@@ -809,6 +811,12 @@ schemas.ts
 
 word-count.ts
 → conta palavras e informa se o texto respeita o limite
+
+state-machine.ts
+→ autoriza eventos e produz a próxima fase sem depender de infraestrutura
+
+game-rules.ts
+→ valida jogadores e resolve vencedor e pontuação da rodada
 
 index.ts
 → oferece um ponto central para importar o domínio
