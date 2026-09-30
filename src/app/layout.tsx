@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Uma Frase",
-  description: "Uma Frase em cada rodada. Uma historia imprevisivel no final.",
+  description: "Uma frase em cada rodada. Uma história imprevisível no final.",
 };
 
 type RootLayoutProps = Readonly<{

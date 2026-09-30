@@ -1,9 +1,50 @@
 "use client";
 
-const TOKEN_KEY_PREFIX = "uma-frase:room-token:";
+export type RoomSessionStore = {
+  getPlayerToken(roomCode: string): string | null;
+  savePlayerToken(roomCode: string, playerToken: string): void;
+  removePlayerToken(roomCode: string): void;
+};
 
-function normalizeRoomCode(roomCode: string): string {
-  return roomCode.trim().toUpperCase();
+const storagePrefix = "uma-frase:room";
+
+function storageKey(roomCode: string) {
+  return `${storagePrefix}:${encodeURIComponent(roomCode.trim().toUpperCase())}:player-token`;
+}
+
+function browserSessionStorage() {
+  if (typeof window === "undefined") {
+    throw new Error(
+      "A identidade da sala está disponível apenas no navegador.",
+    );
+  }
+
+  return window.sessionStorage;
+}
+
+export function createRoomSessionStore(
+  storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">,
+): RoomSessionStore {
+  const getStorage = () => storage ?? browserSessionStorage();
+
+  return {
+    getPlayerToken(roomCode) {
+      const token = getStorage().getItem(storageKey(roomCode));
+      return token?.trim() ? token : null;
+    },
+
+    savePlayerToken(roomCode, playerToken) {
+      if (!roomCode.trim() || !playerToken.trim()) {
+        throw new Error("Sala e identidade são obrigatórias.");
+      }
+
+      getStorage().setItem(storageKey(roomCode), playerToken);
+    },
+
+    removePlayerToken(roomCode) {
+      getStorage().removeItem(storageKey(roomCode));
+    },
+  };
 }
 
 export function createPlayerToken(): string {
@@ -19,20 +60,13 @@ export function createPlayerToken(): string {
 }
 
 export function saveRoomToken(roomCode: string, token: string): void {
-  sessionStorage.setItem(
-    `${TOKEN_KEY_PREFIX}${normalizeRoomCode(roomCode)}`,
-    token,
-  );
+  createRoomSessionStore().savePlayerToken(roomCode, token);
 }
 
 export function readRoomToken(roomCode: string): string | null {
-  return sessionStorage.getItem(
-    `${TOKEN_KEY_PREFIX}${normalizeRoomCode(roomCode)}`,
-  );
+  return createRoomSessionStore().getPlayerToken(roomCode);
 }
 
 export function removeRoomToken(roomCode: string): void {
-  sessionStorage.removeItem(
-    `${TOKEN_KEY_PREFIX}${normalizeRoomCode(roomCode)}`,
-  );
+  createRoomSessionStore().removePlayerToken(roomCode);
 }
