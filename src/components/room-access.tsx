@@ -8,6 +8,7 @@ import {
   type CreateRoomCommand,
   type JoinRoomCommand,
 } from "@/domain";
+import { RoomClientError } from "@/lib/room-client";
 
 export type RoomAccessOperations = {
   createRoom(command: CreateRoomCommand): Promise<void>;
@@ -35,9 +36,7 @@ const unavailableOperations: RoomAccessOperations = {
 };
 
 function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message.trim()
-    ? error.message
-    : fallback;
+  return error instanceof RoomClientError ? error.message : fallback;
 }
 
 export function RoomAccess({

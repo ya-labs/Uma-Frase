@@ -1,5 +1,5 @@
-import { RoomAccess } from "@/components/room-access";
+import { RoomAccessContainer } from "@/components/room-access-container";
 
 export default function Home() {
-  return <RoomAccess />;
+  return <RoomAccessContainer />;
 }

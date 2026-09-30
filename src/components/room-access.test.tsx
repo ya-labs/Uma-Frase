@@ -8,6 +8,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RoomAccess, type RoomAccessOperations } from "./room-access";
+import { RoomClientError } from "@/lib/room-client";
 
 afterEach(cleanup);
 
@@ -103,7 +104,11 @@ describe("RoomAccess", () => {
 
   it("anuncia uma falha de entrada e permite tentar novamente", async () => {
     const roomOperations = operations({
-      joinRoom: vi.fn().mockRejectedValue(new Error("Sala não encontrada.")),
+      joinRoom: vi
+        .fn()
+        .mockRejectedValue(
+          new RoomClientError("validation", "Sala não encontrada."),
+        ),
     });
     render(<RoomAccess operations={roomOperations} />);
 
