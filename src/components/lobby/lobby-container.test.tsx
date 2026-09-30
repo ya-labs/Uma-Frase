@@ -181,7 +181,9 @@ describe("lobby sincronizado", () => {
       await startRequest;
     });
 
-    expect(await screen.findByText("Partida iniciada.")).toBeDefined();
+    expect(
+      await screen.findByText("Criando a situação da rodada…"),
+    ).toBeDefined();
   });
 
   it("não oferece a ação de início ao convidado", async () => {

@@ -19,6 +19,8 @@ import {
   type RoomSessionStore,
 } from "@/lib/room-session";
 
+import { RoundExperience } from "../game/round-experience";
+import { shouldAcceptRoomState } from "../game/room-state-order";
 import { Lobby } from "./lobby";
 
 type LobbyContainerProps = {
@@ -93,7 +95,16 @@ export function LobbyContainer({
         try {
           const result = await client.getRoomState(roomCode, activePlayerToken);
           if (active) {
-            setView({ status: "ready", state: result.state });
+            setView((currentView) => {
+              if (
+                currentView.status === "ready" &&
+                !shouldAcceptRoomState(currentView.state, result.state)
+              ) {
+                return currentView;
+              }
+
+              return { status: "ready", state: result.state };
+            });
             setLastSyncedAt(
               new Date().toLocaleTimeString("pt-BR", { timeStyle: "medium" }),
             );
@@ -144,7 +155,16 @@ export function LobbyContainer({
 
     try {
       const result = await client.startRoom(roomCode, playerToken);
-      setView({ status: "ready", state: result.state });
+      setView((currentView) => {
+        if (
+          currentView.status === "ready" &&
+          !shouldAcceptRoomState(currentView.state, result.state)
+        ) {
+          return currentView;
+        }
+
+        return { status: "ready", state: result.state };
+      });
     } catch (error) {
       setActionError(
         publicErrorMessage(
@@ -215,6 +235,16 @@ export function LobbyContainer({
           <Link href="/">Voltar ao início</Link>
         </div>
       </main>
+    );
+  }
+
+  if (view.state.public.game.status !== "waiting") {
+    return (
+      <RoundExperience
+        state={view.state}
+        connectionStatus={connectionStatus}
+        lastSyncedAt={lastSyncedAt}
+      />
     );
   }
 
