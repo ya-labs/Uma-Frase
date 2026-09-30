@@ -252,6 +252,29 @@ schemas, maquina de estados, contratos HTTP e payload da IA.
 - limite de palavras e controle de rodadas;
 - prompts, Gemini e validacao do retorno.
 
+## Modelo de desenvolvimento orientado por IA
+
+O MVP sera implementado em lotes sem milestones. Cada lote deve concentrar o
+trabalho em uma issue ampla de frontend para Nicolas e uma issue ampla de
+backend para Marco. Cada issue possui sua propria branch e um unico Pull
+Request. Cada pessoa mantem no maximo uma dessas branches ativa.
+
+As entregas internas da issue sao checklists escritos como prompts completos
+para IA. Cada prompt pode realizar uma alteracao grande, desde que declare
+objetivo, contexto, entrega, limites, dependencias, criterios de aceite e
+validacoes. Depois de cada prompt, o diff e revisado, as validacoes sao
+executadas e um commit de checkpoint preserva o estado antes do prompt seguinte.
+
+Quando os dois responsaveis precisarem atuar na mesma issue, a branch sera
+compartilhada somente por revezamento. O repasse exige worktree limpo, commit e
+push, alem do registro do hash, validacoes, contratos alterados, trabalho
+concluido e trabalho restante. Duas pessoas ou duas IAs nao escrevem
+simultaneamente na mesma branch.
+
+A `main` permanece protegida, recebe integracoes frequentes por squash merge e
+nao tera uma branch `dev` intermediaria. Contratos compartilhados devem ser
+integrados antes de trabalhos paralelos que dependam deles.
+
 ## Criterios de pronto
 
 - Dois clientes distintos entram na mesma sala.
