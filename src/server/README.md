@@ -3,3 +3,8 @@
 Integracoes, repositorios e servicos que nao podem entrar no bundle do
 navegador ficam neste diretorio. Modulos server-only devem importar
 `server-only` para tornar essa fronteira verificavel pelo Next.js.
+
+`contracts` guarda o estado completo da sala, incluindo respostas privadas e
+resumo da historia. `ai` define as interfaces para geracao e julgamento; uma
+integracao concreta com Gemini deve implementar essas portas sem alterar os
+contratos compartilhados do dominio.
