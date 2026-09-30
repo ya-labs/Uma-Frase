@@ -8,6 +8,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "db:lint": "supabase db lint --local --schema public --level warning --fail-on error",
+    "db:reset": "supabase db reset --local",
+    "db:start": "supabase start",
+    "db:test": "supabase test db --local",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -36,6 +40,7 @@
     "eslint-config-next": "16.3.5",
     "jsdom": "^29.1.1",
     "prettier": "^3.9.9",
+    "supabase": "2.118.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.11"
   }
