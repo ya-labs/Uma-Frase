@@ -18,7 +18,7 @@ select has_function(
   'room creation operation exists'
 );
 
-select alike(
+select ialike(
   pg_get_functiondef('public.join_game(text,text,text)'::regprocedure),
   '%FOR UPDATE%',
   'join serializes competitors before choosing the remaining slot'
