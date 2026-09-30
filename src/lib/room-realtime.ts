@@ -1,27 +1,35 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-import { roomRealtimeEventSchema } from "@/domain/contracts";
+import { roomStateChangedEventSchema } from "@/domain/contracts";
 
 import { getSupabaseBrowserClient } from "./supabase-browser";
 
 export type RoomConnectionStatus =
   "connecting" | "connected" | "reconnecting" | "disconnected";
 
+export type RoomRefreshReason = "broadcast" | "subscribed";
+
 export type RoomRealtime = {
   subscribe(
     roomCode: string,
-    onRoomChanged: () => void,
+    onRoomChanged: (reason: RoomRefreshReason) => void,
     onStatusChanged: (status: RoomConnectionStatus) => void,
   ): () => void;
 };
 
 type RealtimeClient = Pick<SupabaseClient, "channel" | "removeChannel">;
 
+// Database broadcasts include the message id added by Supabase Realtime.
+const databaseBroadcastSchema = roomStateChangedEventSchema.extend({
+  id: z.string().min(1),
+});
+
 function subscribe(
   roomCode: string,
-  onChange: () => void,
+  onChange: (reason: RoomRefreshReason) => void,
   client: RealtimeClient,
   onStatusChanged?: (status: RoomConnectionStatus) => void,
 ): () => void {
@@ -33,14 +41,14 @@ function subscribe(
   const channel = client
     .channel(`room:${normalizedCode}`)
     .on("broadcast", { event: "room_state_changed" }, ({ payload }) => {
-      const event = roomRealtimeEventSchema.safeParse(payload);
+      const event = databaseBroadcastSchema.safeParse(payload);
 
       if (
         active &&
         event.success &&
         event.data.roomCode.trim().toUpperCase() === normalizedCode
       ) {
-        onChange();
+        onChange("broadcast");
       }
     })
     .subscribe((status) => {
@@ -48,6 +56,8 @@ function subscribe(
 
       if (status === "SUBSCRIBED") {
         onStatusChanged?.("connected");
+        // A change may have happened before the channel finished subscribing.
+        onChange("subscribed");
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         onStatusChanged?.("reconnecting");
       } else if (status === "CLOSED") {

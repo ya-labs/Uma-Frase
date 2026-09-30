@@ -53,7 +53,7 @@ function sessions(playerToken = "opaque-token"): RoomSessionStore {
 }
 
 function realtimeHarness() {
-  const roomChangedCallbacks = new Set<() => void>();
+  const roomChangedCallbacks = new Set<(reason: "broadcast") => void>();
   const unsubscribe = vi.fn();
   const realtime: RoomRealtime = {
     subscribe: vi.fn((_roomCode, onRoomChanged, onStatusChanged) => {
@@ -70,7 +70,7 @@ function realtimeHarness() {
     realtime,
     unsubscribe,
     notify() {
-      roomChangedCallbacks.forEach((callback) => callback());
+      roomChangedCallbacks.forEach((callback) => callback("broadcast"));
     },
   };
 }
@@ -102,6 +102,8 @@ describe("lobby sincronizado", () => {
 
     expect(await screen.findByText("Bruno")).toBeDefined();
     expect(client.getRoomState).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(/Avisos recebidos: 1/)).toBeDefined();
+    expect(screen.getByText(/Última leitura: (?!aguardando)/)).toBeDefined();
 
     view.unmount();
     expect(roomRealtime.unsubscribe).toHaveBeenCalledTimes(1);

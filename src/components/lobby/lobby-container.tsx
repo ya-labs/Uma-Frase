@@ -62,6 +62,8 @@ export function LobbyContainer({
     useState<RoomConnectionStatus>("connecting");
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [notificationsReceived, setNotificationsReceived] = useState(0);
   const [retry, setRetry] = useState(0);
   const playerToken = useSyncExternalStore(
     subscribeToStaticSession,
@@ -90,7 +92,12 @@ export function LobbyContainer({
 
         try {
           const result = await client.getRoomState(roomCode, activePlayerToken);
-          if (active) setView({ status: "ready", state: result.state });
+          if (active) {
+            setView({ status: "ready", state: result.state });
+            setLastSyncedAt(
+              new Date().toLocaleTimeString("pt-BR", { timeStyle: "medium" }),
+            );
+          }
         } catch (error) {
           if (active) {
             setView({
@@ -109,7 +116,13 @@ export function LobbyContainer({
 
     const unsubscribe = realtime.subscribe(
       roomCode,
-      () => void refreshState(),
+      (reason) => {
+        if (!active) return;
+        if (reason === "broadcast") {
+          setNotificationsReceived((count) => count + 1);
+        }
+        void refreshState();
+      },
       (status) => {
         if (active) setConnectionStatus(status);
       },
@@ -209,6 +222,8 @@ export function LobbyContainer({
     <Lobby
       state={view.state}
       connectionStatus={connectionStatus}
+      lastSyncedAt={lastSyncedAt}
+      notificationsReceived={notificationsReceived}
       starting={starting}
       actionError={actionError}
       onStart={() => void handleStart()}

@@ -342,6 +342,19 @@ footer p {
   border-bottom: 1px solid var(--line);
 }
 
+.connection-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.connection-details {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
 .connection-state {
   display: inline-flex;
   align-items: center;
@@ -674,6 +687,10 @@ footer p {
   .lobby-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .connection-summary {
+    align-items: flex-start;
   }
 
   .lobby-content {

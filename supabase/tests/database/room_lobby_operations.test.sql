@@ -9,7 +9,7 @@ end;
 $$;
 set local search_path = public, extensions;
 
-select plan(22);
+select plan(23);
 
 select has_function(
   'public',
@@ -51,13 +51,20 @@ select has_function(
 );
 
 set local role service_role;
-select lives_ok(
-  $$select * from public.create_room_with_host('LOBBY001', 'Host', 'host-hash')$$,
-  'host creates the room'
+select results_eq(
+  $$select room_code from public.create_room_with_host('LOBBY001', 'Host', 'host-hash')$$,
+  array['LOBBY001'::text],
+  'new room creation returns its code'
 );
-select lives_ok(
-  $$select * from public.create_room_with_host('IGNORED1', 'Host', 'host-hash')$$,
-  'repeating creation with the same identity is idempotent'
+select results_eq(
+  $$select public.get_room_snapshot('LOBBY001', 'host-hash') #>> '{state,game,code}'$$,
+  array['LOBBY001'::text],
+  'new room can be read immediately after creation'
+);
+select results_eq(
+  $$select room_code from public.create_room_with_host('IGNORED1', 'Host', 'host-hash')$$,
+  array['LOBBY001'::text],
+  'repeating creation returns the existing room code'
 );
 reset role;
 set local search_path = public, extensions;

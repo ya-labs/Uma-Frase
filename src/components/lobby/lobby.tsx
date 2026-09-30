@@ -6,6 +6,8 @@ import type { RoomConnectionStatus } from "@/lib/room-realtime";
 type LobbyProps = {
   state: RoomState;
   connectionStatus: RoomConnectionStatus;
+  lastSyncedAt: string | null;
+  notificationsReceived: number;
   starting: boolean;
   actionError: string | null;
   onStart: () => void;
@@ -21,6 +23,8 @@ const connectionLabels: Record<RoomConnectionStatus, string> = {
 export function Lobby({
   state,
   connectionStatus,
+  lastSyncedAt,
+  notificationsReceived,
   starting,
   actionError,
   onStart,
@@ -42,14 +46,20 @@ export function Lobby({
           </span>
           Uma Frase
         </Link>
-        <p
-          className={`connection-state connection-${connectionStatus}`}
-          role="status"
-          aria-live="polite"
-        >
-          <span aria-hidden="true" />
-          {connectionLabels[connectionStatus]}
-        </p>
+        <div className="connection-summary">
+          <p
+            className={`connection-state connection-${connectionStatus}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span aria-hidden="true" />
+            {connectionLabels[connectionStatus]}
+          </p>
+          <p className="connection-details">
+            Última leitura: {lastSyncedAt ?? "aguardando"} · Avisos recebidos:{" "}
+            {notificationsReceived}
+          </p>
+        </div>
       </header>
 
       <section className="lobby-content" aria-labelledby="lobby-title">

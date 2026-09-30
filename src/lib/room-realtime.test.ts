@@ -48,34 +48,43 @@ describe("sincronização Realtime da sala", () => {
     );
     realtimeClient.status("SUBSCRIBED");
     realtimeClient.receive({
+      id: "message-1",
       type: "room_state_changed",
       roomCode: "ABCD2345",
     });
     realtimeClient.receive({
+      id: "message-2",
       type: "room_state_changed",
       roomCode: "OTHER123",
     });
     realtimeClient.receive({
+      id: "message-3",
       type: "room_state_changed",
       roomCode: "ABCD2345",
       privateAnswer: "payload não faz parte do contrato",
     });
 
     expect(realtimeClient.client.channel).toHaveBeenCalledWith("room:ABCD2345");
-    expect(onRoomChanged).toHaveBeenCalledTimes(1);
+    expect(onRoomChanged).toHaveBeenCalledTimes(2);
+    expect(onRoomChanged).toHaveBeenNthCalledWith(1, "subscribed");
+    expect(onRoomChanged).toHaveBeenNthCalledWith(2, "broadcast");
     expect(onStatusChanged).toHaveBeenCalledWith("connecting");
     expect(onStatusChanged).toHaveBeenCalledWith("connected");
 
     realtimeClient.status("CHANNEL_ERROR");
     expect(onStatusChanged).toHaveBeenCalledWith("reconnecting");
+    realtimeClient.status("SUBSCRIBED");
+    expect(onRoomChanged).toHaveBeenCalledTimes(3);
+    expect(onRoomChanged).toHaveBeenNthCalledWith(3, "subscribed");
 
     unsubscribe();
     unsubscribe();
     realtimeClient.receive({
+      id: "message-4",
       type: "room_state_changed",
       roomCode: "ABCD2345",
     });
-    expect(onRoomChanged).toHaveBeenCalledTimes(1);
+    expect(onRoomChanged).toHaveBeenCalledTimes(3);
     expect(onStatusChanged).toHaveBeenLastCalledWith("disconnected");
     expect(realtimeClient.client.removeChannel).toHaveBeenCalledOnce();
     expect(realtimeClient.client.removeChannel).toHaveBeenCalledWith(
@@ -94,12 +103,14 @@ describe("sincronização Realtime da sala", () => {
     );
 
     realtimeClient.receive({
+      id: "message-1",
       type: "room_state_changed",
       roomCode: "ROOM1234",
     });
 
     expect(realtimeClient.client.channel).toHaveBeenCalledWith("room:ROOM1234");
     expect(onChange).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenCalledWith("broadcast");
 
     unsubscribe();
     expect(realtimeClient.client.removeChannel).toHaveBeenCalledWith(
