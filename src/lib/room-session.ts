@@ -1,3 +1,5 @@
+"use client";
+
 export type RoomSessionStore = {
   getPlayerToken(roomCode: string): string | null;
   savePlayerToken(roomCode: string, playerToken: string): void;
@@ -7,7 +9,7 @@ export type RoomSessionStore = {
 const storagePrefix = "uma-frase:room";
 
 function storageKey(roomCode: string) {
-  return `${storagePrefix}:${encodeURIComponent(roomCode.trim())}:player-token`;
+  return `${storagePrefix}:${encodeURIComponent(roomCode.trim().toUpperCase())}:player-token`;
 }
 
 function browserSessionStorage() {
@@ -43,4 +45,28 @@ export function createRoomSessionStore(
       getStorage().removeItem(storageKey(roomCode));
     },
   };
+}
+
+export function createPlayerToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join(
+    "",
+  );
+
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+}
+
+export function saveRoomToken(roomCode: string, token: string): void {
+  createRoomSessionStore().savePlayerToken(roomCode, token);
+}
+
+export function readRoomToken(roomCode: string): string | null {
+  return createRoomSessionStore().getPlayerToken(roomCode);
+}
+
+export function removeRoomToken(roomCode: string): void {
+  createRoomSessionStore().removePlayerToken(roomCode);
 }

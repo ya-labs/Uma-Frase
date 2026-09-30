@@ -1,8 +1,22 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRoomSessionStore } from "./room-session";
+import {
+  createPlayerToken,
+  createRoomSessionStore,
+  readRoomToken,
+  removeRoomToken,
+  saveRoomToken,
+} from "./room-session";
 
 describe("identidade da sala por aba", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("persiste e recupera o token opaco em um storage controlado", () => {
     const values = new Map<string, string>();
     const storage = {
@@ -12,27 +26,38 @@ describe("identidade da sala por aba", () => {
     };
     const sessions = createRoomSessionStore(storage);
 
-    sessions.savePlayerToken("ABC123", "opaque-token");
+    sessions.savePlayerToken(" abcd2345 ", "opaque-token");
 
-    expect(sessions.getPlayerToken("ABC123")).toBe("opaque-token");
+    expect(sessions.getPlayerToken("ABCD2345")).toBe("opaque-token");
     expect(storage.setItem).toHaveBeenCalledWith(
-      "uma-frase:room:ABC123:player-token",
+      "uma-frase:room:ABCD2345:player-token",
       "opaque-token",
     );
 
-    sessions.removePlayerToken("ABC123");
-    expect(sessions.getPlayerToken("ABC123")).toBeNull();
+    sessions.removePlayerToken("abcd2345");
+    expect(sessions.getPlayerToken("ABCD2345")).toBeNull();
   });
 
-  it("isola a identidade pelo código da sala", () => {
-    const storage = window.sessionStorage;
-    storage.clear();
-    const sessions = createRoomSessionStore(storage);
+  it("compartilha a mesma identidade entre as duas APIs por sala", () => {
+    const sessions = createRoomSessionStore();
 
-    sessions.savePlayerToken("ROOM01", "token-one");
-    sessions.savePlayerToken("ROOM02", "token-two");
+    saveRoomToken(" room1234 ", "token-one");
+    sessions.savePlayerToken("OTHER123", "token-two");
 
-    expect(sessions.getPlayerToken("ROOM01")).toBe("token-one");
-    expect(sessions.getPlayerToken("ROOM02")).toBe("token-two");
+    expect(readRoomToken("ROOM1234")).toBe("token-one");
+    expect(readRoomToken("other123")).toBe("token-two");
+
+    removeRoomToken("room1234");
+    expect(sessions.getPlayerToken("ROOM1234")).toBeNull();
+    expect(sessions.getPlayerToken("OTHER123")).toBe("token-two");
+  });
+
+  it("gera um token opaco sem depender de dados pessoais", () => {
+    vi.spyOn(crypto, "getRandomValues").mockImplementation((array) => {
+      (array as Uint8Array).fill(7);
+      return array;
+    });
+
+    expect(createPlayerToken()).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
 });

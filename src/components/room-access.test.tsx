@@ -51,12 +51,30 @@ describe("RoomAccess", () => {
     expect(roomOperations.createRoom).not.toHaveBeenCalled();
   });
 
+  it("anuncia um código inválido sem tentar entrar na sala", () => {
+    const roomOperations = operations();
+    render(<RoomAccess operations={roomOperations} />);
+
+    fireEvent.change(screen.getByLabelText("Código da sala"), {
+      target: { value: "ABC123" },
+    });
+    fireEvent.change(screen.getAllByLabelText("Seu nome")[1], {
+      target: { value: "Bruno" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /entrar na sala/i }));
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "Código de sala inválido.",
+    );
+    expect(roomOperations.joinRoom).not.toHaveBeenCalled();
+  });
+
   it("envia os valores normalizados pelos contratos públicos", async () => {
     const roomOperations = operations();
     render(<RoomAccess operations={roomOperations} />);
 
     fireEvent.change(screen.getByLabelText("Código da sala"), {
-      target: { value: "  ABC123  " },
+      target: { value: "  abcd2345  " },
     });
     fireEvent.change(screen.getAllByLabelText("Seu nome")[1], {
       target: { value: "  Bruno  " },
@@ -67,7 +85,7 @@ describe("RoomAccess", () => {
 
     await waitFor(() => {
       expect(roomOperations.joinRoom).toHaveBeenCalledWith({
-        roomCode: "ABC123",
+        roomCode: "ABCD2345",
         playerName: "Bruno",
       });
     });
@@ -113,7 +131,7 @@ describe("RoomAccess", () => {
     render(<RoomAccess operations={roomOperations} />);
 
     fireEvent.change(screen.getByLabelText("Código da sala"), {
-      target: { value: "ABC123" },
+      target: { value: "ABCD2345" },
     });
     fireEvent.change(screen.getAllByLabelText("Seu nome")[1], {
       target: { value: "Bruno" },

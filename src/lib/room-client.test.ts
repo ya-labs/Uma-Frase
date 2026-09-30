@@ -16,7 +16,10 @@ describe("cliente HTTP das salas", () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
         ok: true,
-        data: { playerToken: "opaque-token", state: roomStateFixture },
+        data: {
+          playerToken: "opaque-token-with-at-least-32-chars",
+          state: roomStateFixture,
+        },
       }),
     );
     const client = createRoomClient({ fetch: fetchMock });

@@ -84,13 +84,18 @@ export function RoomAccess({
     });
 
     if (!command.success) {
-      const missingCode = command.error.issues.some(
+      const invalidCode = command.error.issues.some(
         (issue) => issue.path[0] === "roomCode",
       );
+      const missingCode = !String(form.get("room-code") ?? "").trim();
 
       setJoinStatus({
         pending: false,
-        error: missingCode ? "Informe o código da sala." : "Informe seu nome.",
+        error: invalidCode
+          ? missingCode
+            ? "Informe o código da sala."
+            : "Código de sala inválido."
+          : "Informe seu nome.",
       });
       return;
     }

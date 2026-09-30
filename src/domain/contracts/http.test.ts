@@ -11,22 +11,39 @@ import { roomStateFixture } from "./fixtures";
 
 const validCommands = {
   create: { playerName: "Ana" },
-  join: { roomCode: "ABC123", playerName: "Bruno" },
-  start: { roomCode: "ABC123", playerToken: "opaque-token" },
-  state: { roomCode: "ABC123", playerToken: "opaque-token" },
+  join: { roomCode: "ABCD2345", playerName: "Bruno" },
+  start: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+  },
+  state: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+  },
+  presence: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+    isConnected: true,
+  },
   answer: {
-    roomCode: "ABC123",
-    playerToken: "opaque-token",
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
     roundId: "round-1",
     text: "Eu atravesso a porta.",
   },
   resolve: {
-    roomCode: "ABC123",
-    playerToken: "opaque-token",
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
     roundId: "round-1",
   },
-  pause: { roomCode: "ABC123", playerToken: "opaque-token" },
-  resume: { roomCode: "ABC123", playerToken: "opaque-token" },
+  pause: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+  },
+  resume: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+  },
 } as const;
 
 describe("contratos HTTP da sala", () => {
@@ -48,16 +65,27 @@ describe("contratos HTTP da sala", () => {
   it("rejeita campos ausentes e campos desconhecidos", () => {
     expect(
       roomHttpContracts.answer.commandSchema.safeParse({
-        roomCode: "ABC123",
-        playerToken: "opaque-token",
+        roomCode: "ABCD2345",
+        playerToken: "opaque-token-with-at-least-32-chars",
         text: "Sem rodada.",
       }).success,
     ).toBe(false);
     expect(
       roomHttpContracts.start.commandSchema.safeParse({
-        roomCode: "ABC123",
-        playerToken: "opaque-token",
+        roomCode: "ABCD2345",
+        playerToken: "opaque-token-with-at-least-32-chars",
         serverOnly: true,
+      }).success,
+    ).toBe(false);
+    expect(
+      roomHttpContracts.join.commandSchema.safeParse({
+        roomCode: "codigo previsivel",
+        playerName: "Bruno",
+      }).success,
+    ).toBe(false);
+    expect(
+      roomHttpContracts.create.commandSchema.safeParse({
+        playerName: "A".repeat(81),
       }).success,
     ).toBe(false);
   });
@@ -65,7 +93,10 @@ describe("contratos HTTP da sala", () => {
   it("serializa respostas de criação e consulta", () => {
     const createResponse = {
       ok: true as const,
-      data: { playerToken: "opaque-token", state: roomStateFixture },
+      data: {
+        playerToken: "opaque-token-with-at-least-32-chars",
+        state: roomStateFixture,
+      },
     };
     const stateResponse = {
       ok: true as const,
