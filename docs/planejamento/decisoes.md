@@ -6,8 +6,9 @@
 
 - O nome oficial do jogo e **Uma Frase**.
 - A primeira versao planejada e **MVP 0.1**.
-- O projeto nao utilizara milestones; o desenvolvimento seguira por issues
-  pequenas em ordem continua.
+- O projeto nao utilizara milestones. Na data, o desenvolvimento seguiria por
+  issues pequenas em ordem continua; essa granularidade foi substituida pela
+  decisao de 2026-09-30.
 
 ### Plataforma e arquitetura
 
@@ -44,6 +45,27 @@
   moralmente desconfortaveis.
 - Serao excluidos sexo explicito, violencia sexual, ataques a grupos protegidos
   e incentivo a dano no mundo real.
+
+## 2026-09-30
+
+### Desenvolvimento orientado por prompts de IA
+
+- O trabalho continuara sem milestones.
+- Cada lote tera, como regra, uma issue ampla de frontend para Nicolas e uma
+  issue ampla de backend para Marco.
+- Cada pessoa manterá no maximo uma issue e uma branch ativas.
+- Uma branch pertence a uma unica issue e termina em um unico Pull Request.
+- Cada item do checklist sera um prompt grande, autocontido e verificavel para
+  IA, com objetivo, contexto, entrega, limites, dependencias, criterios de
+  aceite e validacoes.
+- Cada prompt concluido gera um commit de checkpoint na mesma branch.
+- Duas pessoas ou duas IAs nao trabalharao simultaneamente na mesma branch.
+- Trabalho compartilhado usara revezamento com worktree limpo, commit, push e
+  repasse explicito de contexto.
+- A `main` permanecera protegida e nao sera criada uma branch `dev` permanente.
+- Branches concluidas deverao ser removidas depois do merge.
+- Issues futuras serao maiores; tarefas internas serao checklists, nao novas
+  issues e branches por padrao.
 
 ## Decisoes pendentes
 

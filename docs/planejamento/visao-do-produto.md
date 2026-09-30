@@ -31,8 +31,9 @@ A regra central deve ser compreendida imediatamente:
 - As respostas ficam privadas ate a revelacao simultanea.
 - A IA deve devolver dados estruturados e nunca controlar diretamente o estado.
 - O MVP deve validar a diversao do fluxo principal antes de ganhar novos modos.
-- O desenvolvimento sera continuo, organizado por issues pequenas, sem
-  milestones.
+- O desenvolvimento sera continuo, sem milestones, organizado por issues amplas
+  por responsavel e lote. Cada checklist da issue sera um prompt executavel por
+  IA, com contexto, limites, criterios de aceite e validacoes proprias.
 
 ## Tom e limites de conteudo
 
