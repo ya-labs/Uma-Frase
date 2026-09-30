@@ -1,9 +1,5 @@
-import { ApplicationStatus } from "@/components/application-status";
+import { RoomAccess } from "@/components/room-access";
 
 export default function Home() {
-  return (
-    <main>
-      <ApplicationStatus />
-    </main>
-  );
+  return <RoomAccess />;
 }
