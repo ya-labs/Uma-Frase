@@ -24,8 +24,13 @@ configuracoes.
 ## Desenvolvimento local
 
 1. Copie `.env.example` para `.env.local`.
-2. Preencha as chaves do projeto Supabase e da API Gemini.
+2. Preencha a URL, a Publishable key e a Secret key do projeto Supabase de
+   desenvolvimento.
 3. Execute `npm run dev`.
+
+`GEMINI_API_KEY` e `GEMINI_MODEL` podem permanecer vazias ate a issue de
+integracao com o Gemini. A configuracao do Supabase remoto permite desenvolver
+sem executar o stack local em Docker.
 
 Os arquivos `.env*` reais sao ignorados pelo Git. Apenas `.env.example`, sem
 segredos, deve ser versionado. Quando um cliente for criado com configuracao

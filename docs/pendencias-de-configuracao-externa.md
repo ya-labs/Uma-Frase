@@ -10,32 +10,68 @@ Nunca registre senhas ou chaves reais no GitHub, no repositório ou em conversas
 Use `.env.local` no desenvolvimento e variáveis protegidas na plataforma de
 deploy.
 
-## Antes da issue #17: Docker e Supabase
+## Antes da issue #17: Supabase remoto de desenvolvimento
 
-### Instalar o Docker
+### Decisão para a máquina corporativa
 
-- [ ] Instalar Docker Engine ou Docker Desktop na máquina de desenvolvimento.
-- [ ] Garantir que o usuário atual consiga acessar o daemon do Docker.
-- [ ] Executar `docker run hello-world` com sucesso.
-- [ ] Confirmar que `npm run db:start` inicia o Supabase local.
+O Docker não está disponível na máquina corporativa e não deve bloquear o
+desenvolvimento. O fluxo adotado usa um projeto Supabase remoto exclusivo para
+desenvolvimento. A suíte completa de banco continua executada pelo GitHub
+Actions em um runner com Docker.
 
-O Supabase CLI usa containers para executar o banco, a API e os demais serviços
-locais. A instalação deve seguir a
-[documentação oficial do Docker](https://docs.docker.com/engine/install/ubuntu/).
+O Next.js roda localmente com `npm run dev` e usa as credenciais do projeto
+remoto em `.env.local`. As migrations continuam versionadas no repositório e
+são aplicadas pelo Supabase CLI somente depois de revisão.
 
-### Criar o projeto de desenvolvimento no Supabase
+### Estado da configuração do Supabase
 
-- [ ] Criar um projeto de desenvolvimento na organização responsável pelo Uma
-      Frase, em uma região próxima dos usuários esperados.
-- [ ] Gerar uma senha forte para o banco e guardá-la em um gerenciador de
+- [x] Criar um projeto de desenvolvimento na organização responsável pelo Uma
+      Frase.
+- [x] Confirmar que a região escolhida atende aos usuários esperados.
+- [x] Confirmar que a senha forte do banco está guardada em um gerenciador de
       senhas.
-- [ ] Obter no painel o Project ref, a Project URL, a Publishable key e a Secret
+- [x] Obter no painel o Project ref, a Project URL, a Publishable key e a Secret
       key.
-- [ ] Preencher `.env.local` sem versionar o arquivo.
-- [ ] Autorizar o login do Supabase CLI quando o vínculo com o projeto for
-      realizado.
+- [x] Preencher `.env.local` sem versionar o arquivo.
+- [x] Autorizar o login do Supabase CLI e vincular o repositório ao projeto de
+      desenvolvimento.
+- [x] Revisar a migration inicial com `supabase db push --dry-run`.
+- [x] Aplicar a migration revisada e confirmar o histórico remoto.
+- [x] Executar o lint remoto sem erros e confirmar as tabelas esperadas.
+- [x] Confirmar que `npm run dev` carrega a aplicação com a configuração remota.
 
-Configuração local esperada:
+O vínculo local fica em `supabase/.temp`, que é ignorado pelo Git. O Project ref
+pode ser compartilhado para preparar o vínculo, mas não deve ser fixado na
+documentação como se todos os ambientes usassem o mesmo projeto.
+
+### Fluxo remoto sem Docker
+
+Depois de instalar as dependências e autenticar o CLI:
+
+```bash
+npx supabase link --project-ref PROJECT_REF
+npx supabase db push --dry-run
+npx supabase db push
+npx supabase migration list --linked
+npx supabase db lint --linked --schema public --level warning --fail-on error
+```
+
+`db push` altera o banco remoto e só deve ser executado depois da revisão do
+`dry-run`. Nunca execute `supabase db reset --linked` em um ambiente com dados
+que precisam ser preservados.
+
+### Docker opcional
+
+- [ ] Instalar um runtime compatível com Docker somente se a política da
+      máquina permitir e houver necessidade de executar todo o stack local.
+- [ ] Quando disponível, confirmar `docker run hello-world` e
+      `npm run db:start`.
+
+Sem Docker, `db:start`, `db:reset`, `db:test` e `db:lint` local não ficam
+disponíveis. Isso não bloqueia a issue #17: o job `Database` do GitHub Actions
+executa essas validações em pull requests.
+
+### Configuração local esperada
 
 ```dotenv
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -52,16 +88,9 @@ fica restrita ao servidor. A Publishable key pode ser usada pelo navegador e
 continua limitada pelas permissões públicas do banco. Consulte a
 [documentação de chaves do Supabase](https://supabase.com/docs/guides/getting-started/api-keys).
 
-Não crie tabelas, policies ou publicações Realtime manualmente no Dashboard. O
-desenvolvimento deve:
-
-1. vincular o repositório com `supabase link`;
-2. visualizar as mudanças com `supabase db push --dry-run`;
-3. aplicar as migrations somente depois da revisão;
-4. validar schema, RLS e testes no projeto remoto.
-
-Somente o Project ref pode ser compartilhado para preparar o vínculo. A senha
-do banco e a Secret key não devem ser enviadas pelo chat.
+Não crie tabelas, policies ou publicações Realtime manualmente no Dashboard.
+Somente migrations versionadas e revisadas devem alterar o schema. A senha do
+banco, o token pessoal do CLI e a Secret key não devem ser enviados pelo chat.
 
 ## Antes da issue #21: Gemini
 
@@ -107,10 +136,11 @@ Variables**, conforme a
 
 | Ação                                                  | Responsável                                        |
 | ----------------------------------------------------- | -------------------------------------------------- |
-| Instalar Docker e liberar acesso ao daemon            | Pessoa desenvolvedora                              |
+| Liberar Docker local quando permitido e necessário    | Pessoa desenvolvedora e suporte da empresa         |
 | Criar contas, projetos e credenciais externas         | Pessoa desenvolvedora                              |
 | Guardar senhas e chaves fora do repositório e do chat | Pessoa desenvolvedora                              |
 | Versionar schema, RLS, Realtime e funções             | Desenvolvimento no repositório                     |
 | Executar `link`, `dry-run` e migrations revisadas     | Desenvolvimento autorizado                         |
+| Executar a suíte de banco sem Docker local            | GitHub Actions                                     |
 | Integrar Gemini e validar seus retornos               | Issue backend correspondente                       |
 | Configurar variáveis e validar o deploy               | Pessoa desenvolvedora com apoio do desenvolvimento |
