@@ -14,3 +14,7 @@
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Supabase local runtime
+/supabase/.branches
+/supabase/.temp

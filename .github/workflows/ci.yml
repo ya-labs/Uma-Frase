@@ -10,6 +10,35 @@ permissions:
   contents: read
 
 jobs:
+  database:
+    name: Database
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local Supabase
+        run: npm run db:start
+
+      - name: Recreate database from migrations
+        run: npm run db:reset
+
+      - name: Test database and RLS
+        run: npm run db:test
+
+      - name: Lint database
+        run: npm run db:lint
+
   validate:
     name: Validate
     runs-on: ubuntu-latest
