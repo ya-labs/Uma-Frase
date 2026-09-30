@@ -18,7 +18,10 @@ vi.mock("@google/genai", () => ({
 }));
 
 import { createGeminiServerClient } from "./ai/gemini";
-import { parseServerEnvironment } from "./environment";
+import {
+  parseServerEnvironment,
+  parseSupabaseServerEnvironment,
+} from "./environment";
 import { createSupabaseAdminClient } from "./supabase";
 
 const validEnvironment = {
@@ -48,6 +51,18 @@ describe("ambiente server-side", () => {
     expect(caughtError).toBeInstanceOf(Error);
     expect(String(caughtError)).not.toContain("segredo-do-teste");
     expect(String(caughtError)).toContain("SUPABASE_URL");
+  });
+
+  it("permite configurar o Supabase antes da integracao com Gemini", () => {
+    expect(
+      parseSupabaseServerEnvironment({
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY: "server-secret",
+      }),
+    ).toEqual({
+      supabaseUrl: "https://example.supabase.co",
+      supabaseServiceRoleKey: "server-secret",
+    });
   });
 });
 

@@ -2,10 +2,13 @@ import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import { getServerEnvironment, type ServerEnvironment } from "./environment";
+import {
+  getSupabaseServerEnvironment,
+  type SupabaseServerEnvironment,
+} from "./environment";
 
 export function createSupabaseAdminClient(
-  environment: ServerEnvironment = getServerEnvironment(),
+  environment: SupabaseServerEnvironment = getSupabaseServerEnvironment(),
 ): SupabaseClient {
   return createClient(
     environment.supabaseUrl,

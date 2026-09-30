@@ -3,9 +3,13 @@ import { z } from "zod";
 import { contractErrorResponseSchema } from "./errors";
 import { roomStateSchema } from "./state";
 
-const roomCodeSchema = z.string().trim().min(1);
-const playerTokenSchema = z.string().trim().min(1);
-const playerNameSchema = z.string().trim().min(1);
+const roomCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-HJ-NP-Z2-9]{8}$/, "Código de sala inválido.");
+const playerTokenSchema = z.string().trim().min(32).max(256);
+const playerNameSchema = z.string().trim().min(1).max(80);
 const identifierSchema = z.string().trim().min(1);
 
 const authenticatedRoomCommandShape = {
@@ -14,11 +18,18 @@ const authenticatedRoomCommandShape = {
 };
 
 export const createRoomCommandSchema = z
-  .object({ playerName: playerNameSchema })
+  .object({
+    playerName: playerNameSchema,
+    playerToken: playerTokenSchema.optional(),
+  })
   .strict();
 
 export const joinRoomCommandSchema = z
-  .object({ roomCode: roomCodeSchema, playerName: playerNameSchema })
+  .object({
+    roomCode: roomCodeSchema,
+    playerName: playerNameSchema,
+    playerToken: playerTokenSchema.optional(),
+  })
   .strict();
 
 export const startRoomCommandSchema = z
@@ -27,6 +38,13 @@ export const startRoomCommandSchema = z
 
 export const getRoomStateCommandSchema = z
   .object(authenticatedRoomCommandShape)
+  .strict();
+
+export const setRoomPresenceCommandSchema = z
+  .object({
+    ...authenticatedRoomCommandShape,
+    isConnected: z.boolean(),
+  })
   .strict();
 
 export const submitAnswerCommandSchema = z
@@ -80,6 +98,9 @@ export const startRoomResponseSchema = operationResponseSchema(
 export const getRoomStateResponseSchema = operationResponseSchema(
   roomStateResultSchema,
 );
+export const setRoomPresenceResponseSchema = operationResponseSchema(
+  roomStateResultSchema,
+);
 export const submitAnswerResponseSchema = operationResponseSchema(
   roomStateResultSchema,
 );
@@ -118,6 +139,12 @@ export const roomHttpContracts = {
     commandSchema: getRoomStateCommandSchema,
     responseSchema: getRoomStateResponseSchema,
   },
+  presence: {
+    method: "POST",
+    path: "/api/rooms/:code/presence",
+    commandSchema: setRoomPresenceCommandSchema,
+    responseSchema: setRoomPresenceResponseSchema,
+  },
   answer: {
     method: "POST",
     path: "/api/rooms/:code/answer",
@@ -148,6 +175,9 @@ export type CreateRoomCommand = z.infer<typeof createRoomCommandSchema>;
 export type JoinRoomCommand = z.infer<typeof joinRoomCommandSchema>;
 export type StartRoomCommand = z.infer<typeof startRoomCommandSchema>;
 export type GetRoomStateCommand = z.infer<typeof getRoomStateCommandSchema>;
+export type SetRoomPresenceCommand = z.infer<
+  typeof setRoomPresenceCommandSchema
+>;
 export type SubmitAnswerCommand = z.infer<typeof submitAnswerCommandSchema>;
 export type ResolveRoomCommand = z.infer<typeof resolveRoomCommandSchema>;
 export type PauseRoomCommand = z.infer<typeof pauseRoomCommandSchema>;
@@ -156,6 +186,9 @@ export type CreateRoomResponse = z.infer<typeof createRoomResponseSchema>;
 export type JoinRoomResponse = z.infer<typeof joinRoomResponseSchema>;
 export type StartRoomResponse = z.infer<typeof startRoomResponseSchema>;
 export type GetRoomStateResponse = z.infer<typeof getRoomStateResponseSchema>;
+export type SetRoomPresenceResponse = z.infer<
+  typeof setRoomPresenceResponseSchema
+>;
 export type SubmitAnswerResponse = z.infer<typeof submitAnswerResponseSchema>;
 export type ResolveRoomResponse = z.infer<typeof resolveRoomResponseSchema>;
 export type PauseRoomResponse = z.infer<typeof pauseRoomResponseSchema>;
