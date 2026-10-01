@@ -80,6 +80,9 @@ export const publicRoomStateSchema = z
         revision: z.number().int().nonnegative(),
         canRetry: z.boolean(),
         workError: z.boolean(),
+        serverNow: z.iso.datetime({ offset: true }).optional(),
+        remainingAnswerMs: z.number().int().nonnegative().nullable().optional(),
+        demoMode: z.boolean().optional(),
       })
       .strict()
       .optional(),

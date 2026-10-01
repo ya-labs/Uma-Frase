@@ -54,6 +54,9 @@ export function buildRoomState(snapshot: RoomSnapshot): RoomState {
               revision: control.revision,
               canRetry: control.canRetry,
               workError: control.workError,
+              serverNow: control.serverNow,
+              remainingAnswerMs: control.remainingAnswerMs,
+              demoMode: process.env.UMA_FRASE_AI_PROVIDER === "demo",
             },
           }
         : {}),

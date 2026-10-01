@@ -32,14 +32,19 @@ import { Lobby } from "./lobby";
 type LobbyContainerProps = {
   roomCode: string;
   client?: Pick<RoomClient, "getRoomState" | "startRoom"> &
-    Partial<Pick<RoomClient, "submitAnswer">>;
+    Partial<
+      Pick<
+        RoomClient,
+        "submitAnswer" | "setPresence" | "advanceRoom" | "retryNarrative"
+      >
+    >;
   realtime?: RoomRealtime;
   sessions?: RoomSessionStore;
 };
 
 type LobbyViewState =
   | { status: "loading" }
-  | { status: "ready"; state: RoomState }
+  | { status: "ready"; state: RoomState; receivedAt: number }
   | { status: "error"; message: string };
 
 function publicErrorMessage(error: unknown, fallback: string) {
@@ -71,9 +76,16 @@ export function LobbyContainer({
     useState<RoomConnectionStatus>("connecting");
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [answerSubmitting, setAnswerSubmitting] = useState(false);
-  const [answerError, setAnswerError] = useState<string | null>(null);
-  const answerRequestInFlight = useRef(false);
+  const [answerSubmitting, setAnswerSubmitting] = useState<string | null>(null);
+  const [answerError, setAnswerError] = useState<{
+    roundId: string;
+    message: string;
+    retryable: boolean;
+  } | null>(null);
+  const answerRequestsInFlight = useRef(new Set<string>());
+  const actionRequestInFlight = useRef(false);
+  const [gameActionPending, setGameActionPending] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [notificationsReceived, setNotificationsReceived] = useState(0);
   const [retry, setRetry] = useState(0);
@@ -104,6 +116,7 @@ export function LobbyContainer({
 
         try {
           const result = await client.getRoomState(roomCode, activePlayerToken);
+          const receivedAt = Date.now();
           if (active) {
             setView((currentView) => {
               if (
@@ -113,21 +126,25 @@ export function LobbyContainer({
                 return currentView;
               }
 
-              return { status: "ready", state: result.state };
+              return { status: "ready", state: result.state, receivedAt };
             });
             setLastSyncedAt(
               new Date().toLocaleTimeString("pt-BR", { timeStyle: "medium" }),
             );
+            setSyncError(null);
           }
         } catch (error) {
           if (active) {
-            setView({
-              status: "error",
-              message: publicErrorMessage(
-                error,
-                "Não foi possível atualizar a sala. Tente novamente.",
-              ),
-            });
+            const message = publicErrorMessage(
+              error,
+              "Não foi possível atualizar a sala. Tente novamente.",
+            );
+            setSyncError(message);
+            setView((current) =>
+              current.status === "ready"
+                ? current
+                : { status: "error", message },
+            );
           }
         }
       } while (active && refreshQueued);
@@ -151,20 +168,67 @@ export function LobbyContainer({
 
     void refreshState();
 
+    const polling = window.setInterval(() => {
+      if (navigator.onLine) void refreshState();
+    }, 1000);
+    let presencePending = false;
+    async function heartbeat() {
+      if (
+        !active ||
+        !client.setPresence ||
+        presencePending ||
+        !navigator.onLine
+      )
+        return;
+      presencePending = true;
+      try {
+        await client.setPresence(roomCode, activePlayerToken, true);
+      } catch {
+        /* Reads retain and recover the confirmed state. */
+      } finally {
+        presencePending = false;
+      }
+    }
+    const presence = window.setInterval(() => void heartbeat(), 2000);
+    function offline() {
+      setSyncError(
+        "Conexão perdida. Seu estado confirmado foi preservado; aguardando o servidor para retomar.",
+      );
+    }
+    function online() {
+      void heartbeat();
+      void refreshState();
+    }
+    function leaving() {
+      void client
+        .setPresence?.(roomCode, activePlayerToken, false)
+        .catch(() => undefined);
+    }
+    window.addEventListener("offline", offline);
+    window.addEventListener("online", online);
+    window.addEventListener("pagehide", leaving);
+
     return () => {
       active = false;
+      window.clearInterval(polling);
+      window.clearInterval(presence);
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("online", online);
+      window.removeEventListener("pagehide", leaving);
       unsubscribe();
     };
   }, [client, playerToken, realtime, retry, roomCode]);
 
   async function handleStart() {
-    if (!playerToken) return;
+    if (!playerToken || actionRequestInFlight.current) return;
+    actionRequestInFlight.current = true;
 
     setStarting(true);
     setActionError(null);
 
     try {
       const result = await client.startRoom(roomCode, playerToken);
+      const receivedAt = Date.now();
       setView((currentView) => {
         if (
           currentView.status === "ready" &&
@@ -173,7 +237,7 @@ export function LobbyContainer({
           return currentView;
         }
 
-        return { status: "ready", state: result.state };
+        return { status: "ready", state: result.state, receivedAt };
       });
     } catch (error) {
       setActionError(
@@ -183,22 +247,29 @@ export function LobbyContainer({
         ),
       );
     } finally {
+      actionRequestInFlight.current = false;
       setStarting(false);
     }
   }
 
   async function handleSubmitAnswer(roundId: string, text: string) {
-    if (!playerToken || !client.submitAnswer || answerRequestInFlight.current) {
+    if (
+      !playerToken ||
+      !client.submitAnswer ||
+      answerRequestsInFlight.current.has(roundId)
+    ) {
       if (!client.submitAnswer) {
-        setAnswerError(
-          "O envio ainda não está disponível neste servidor. Tente novamente após a integração do motor de rodadas.",
-        );
+        setAnswerError({
+          roundId,
+          message: "O envio ainda não está disponível neste servidor.",
+          retryable: false,
+        });
       }
       return;
     }
 
-    answerRequestInFlight.current = true;
-    setAnswerSubmitting(true);
+    answerRequestsInFlight.current.add(roundId);
+    setAnswerSubmitting(roundId);
     setAnswerError(null);
 
     try {
@@ -208,6 +279,7 @@ export function LobbyContainer({
         roundId,
         text.trim(),
       );
+      const receivedAt = Date.now();
       setView((currentView) => {
         if (
           currentView.status === "ready" &&
@@ -216,25 +288,76 @@ export function LobbyContainer({
           return currentView;
         }
 
-        return { status: "ready", state: result.state };
+        return { status: "ready", state: result.state, receivedAt };
       });
     } catch (error) {
-      setAnswerError(
-        publicErrorMessage(
+      setAnswerError({
+        roundId,
+        message: publicErrorMessage(
           error,
           "Não foi possível enviar sua resposta. Tente novamente.",
         ),
-      );
+        retryable: error instanceof RoomClientError && error.retryable,
+      });
+      setRetry((value) => value + 1);
     } finally {
-      answerRequestInFlight.current = false;
-      setAnswerSubmitting(false);
+      answerRequestsInFlight.current.delete(roundId);
+      setAnswerSubmitting((current) => (current === roundId ? null : current));
     }
   }
 
   function handleRetry() {
-    setView({ status: "loading" });
+    setView((current) =>
+      current.status === "ready" ? current : { status: "loading" },
+    );
     setConnectionStatus("connecting");
     setRetry((value) => value + 1);
+  }
+
+  async function handleGameAction(action: "advance" | "retry") {
+    if (
+      !playerToken ||
+      view.status !== "ready" ||
+      actionRequestInFlight.current
+    )
+      return;
+    if (action === "retry" && !view.state.public.control?.canRetry) return;
+    const roundId = view.state.public.currentRound?.id;
+    if (
+      action === "advance" &&
+      (!roundId ||
+        !view.state.private.isHost ||
+        view.state.public.game.status !== "reveal" ||
+        view.state.public.game.round >= 8)
+    )
+      return;
+    actionRequestInFlight.current = true;
+    setGameActionPending(true);
+    setActionError(null);
+    try {
+      const result =
+        action === "advance"
+          ? await client.advanceRoom?.(roomCode, playerToken, roundId!)
+          : await client.retryNarrative?.(roomCode, playerToken);
+      const receivedAt = Date.now();
+      if (result)
+        setView((current) =>
+          current.status === "ready" &&
+          !shouldAcceptRoomState(current.state, result.state)
+            ? current
+            : { status: "ready", state: result.state, receivedAt },
+        );
+    } catch (error) {
+      setActionError(
+        publicErrorMessage(
+          error,
+          "Não foi possível continuar agora. Tente novamente.",
+        ),
+      );
+    } finally {
+      actionRequestInFlight.current = false;
+      setGameActionPending(false);
+    }
   }
 
   if (playerToken === undefined) {
@@ -296,10 +419,27 @@ export function LobbyContainer({
     return (
       <RoundExperience
         state={view.state}
+        clockReceivedAt={view.receivedAt}
         connectionStatus={connectionStatus}
         lastSyncedAt={lastSyncedAt}
-        submitting={answerSubmitting}
-        submitError={answerError}
+        submitting={answerSubmitting === view.state.public.currentRound?.id}
+        submitError={
+          answerError &&
+          answerError.roundId === view.state.public.currentRound?.id
+            ? answerError.message
+            : null
+        }
+        submitErrorRetryable={Boolean(
+          answerError &&
+          answerError.roundId === view.state.public.currentRound?.id &&
+          answerError.retryable,
+        )}
+        syncError={syncError}
+        actionError={actionError}
+        actionPending={gameActionPending}
+        onRefresh={handleRetry}
+        onAdvance={() => void handleGameAction("advance")}
+        onRetryNarrative={() => void handleGameAction("retry")}
         onSubmitAnswer={(roundId, text) =>
           void handleSubmitAnswer(roundId, text)
         }
@@ -308,14 +448,24 @@ export function LobbyContainer({
   }
 
   return (
-    <Lobby
-      state={view.state}
-      connectionStatus={connectionStatus}
-      lastSyncedAt={lastSyncedAt}
-      notificationsReceived={notificationsReceived}
-      starting={starting}
-      actionError={actionError}
-      onStart={() => void handleStart()}
-    />
+    <>
+      {syncError ? (
+        <aside className="sync-banner" role="alert">
+          {syncError}
+          <button type="button" onClick={handleRetry}>
+            Reconectar
+          </button>
+        </aside>
+      ) : null}
+      <Lobby
+        state={view.state}
+        connectionStatus={connectionStatus}
+        lastSyncedAt={lastSyncedAt}
+        notificationsReceived={notificationsReceived}
+        starting={starting}
+        actionError={actionError}
+        onStart={() => void handleStart()}
+      />
+    </>
   );
 }

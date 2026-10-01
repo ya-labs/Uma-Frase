@@ -26,6 +26,14 @@ type RoundExperienceProps = {
   submitting: boolean;
   submitError: string | null;
   onSubmitAnswer: (roundId: string, text: string) => void;
+  submitErrorRetryable?: boolean;
+  clockReceivedAt?: number;
+  syncError?: string | null;
+  actionError?: string | null;
+  actionPending?: boolean;
+  onRefresh?: () => void;
+  onAdvance?: () => void;
+  onRetryNarrative?: () => void;
 };
 
 const connectionLabels: Record<RoomConnectionStatus, string> = {
@@ -77,6 +85,12 @@ type AnswerComposerProps = Pick<
   "submitting" | "submitError" | "onSubmitAnswer"
 > & {
   round: PublicRoundState;
+  paused: boolean;
+  unavailable: boolean;
+  serverNow?: string;
+  clockReceivedAt?: number;
+  remainingAnswerMs?: number | null;
+  submitErrorRetryable?: boolean;
 };
 
 function AnswerComposer({
@@ -84,12 +98,26 @@ function AnswerComposer({
   submitting,
   submitError,
   onSubmitAnswer,
+  paused,
+  unavailable,
+  serverNow,
+  clockReceivedAt,
+  remainingAnswerMs,
+  submitErrorRetryable = true,
 }: AnswerComposerProps) {
   const [draft, setDraft] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const automaticAttemptedRound = useRef<string | null>(null);
   const deadline = round.answerDeadlineAt;
-  const remainingMs = remainingMilliseconds(deadline, now);
+  const [initialLocalTime] = useState(() => Date.now());
+  const clockOffset = serverNow
+    ? Date.parse(serverNow) - (clockReceivedAt ?? initialLocalTime)
+    : 0;
+  const remainingMs =
+    paused && remainingAnswerMs !== undefined && remainingAnswerMs !== null
+      ? remainingAnswerMs
+      : remainingMilliseconds(deadline, now + clockOffset);
+  const attemptKey = `${round.id}:${deadline}`;
   const remainingSeconds = Math.ceil(remainingMs / 1000);
   const wordCount = useMemo(() => countWords(draft), [draft]);
   const wordLimit = round.wordLimit;
@@ -99,28 +127,41 @@ function AnswerComposer({
   const isValid = hasText && isWithinLimit;
   const expired = deadline !== null && remainingMs === 0;
   const canSubmitBeforeDeadline =
-    deadline !== null && !expired && isValid && !submitting;
-  const canRetry = submitError !== null && isValid && !submitting;
+    deadline !== null &&
+    !expired &&
+    isValid &&
+    !submitting &&
+    !paused &&
+    !unavailable;
+  const canRetry =
+    submitError !== null &&
+    submitErrorRetryable &&
+    isValid &&
+    !submitting &&
+    !paused &&
+    !unavailable;
 
   useEffect(() => {
-    if (!deadline) return;
+    if (!deadline || paused) return;
 
     const interval = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(interval);
-  }, [deadline]);
+  }, [deadline, paused]);
 
   useEffect(() => {
     if (
       deadline === null ||
+      paused ||
+      unavailable ||
       remainingMs > 0 ||
       !isValid ||
       submitting ||
-      automaticAttemptedRound.current === round.id
+      automaticAttemptedRound.current === attemptKey
     ) {
       return;
     }
 
-    automaticAttemptedRound.current = round.id;
+    automaticAttemptedRound.current = attemptKey;
     onSubmitAnswer(round.id, draft);
   }, [
     deadline,
@@ -130,18 +171,21 @@ function AnswerComposer({
     remainingMs,
     round.id,
     submitting,
+    paused,
+    unavailable,
+    attemptKey,
   ]);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
       (!canSubmitBeforeDeadline && !canRetry) ||
-      (automaticAttemptedRound.current === round.id && !canRetry)
+      (automaticAttemptedRound.current === attemptKey && !canRetry)
     ) {
       return;
     }
 
-    automaticAttemptedRound.current = round.id;
+    automaticAttemptedRound.current = attemptKey;
     onSubmitAnswer(round.id, draft);
   }
 
@@ -172,7 +216,10 @@ function AnswerComposer({
           name="answer"
           rows={4}
           value={draft}
-          disabled={submitting || expired || deadline === null}
+          disabled={
+            submitting || expired || deadline === null || paused || unavailable
+          }
+          maxLength={2000}
           aria-invalid={!isWithinLimit && wordCount > 0}
           aria-describedby={`answer-help-${round.id}`}
           placeholder="Escreva uma única frase…"
@@ -191,6 +238,9 @@ function AnswerComposer({
           </span>
           <span>Ctrl ou ⌘ + Enter para enviar</span>
         </div>
+        <p className="privacy-note">
+          Uma única frase. Não envie dados pessoais ou sensíveis.
+        </p>
         {!isWithinLimit && wordCount > 0 ? (
           <p className="answer-warning" role="alert">
             Reduza sua frase para respeitar o limite da rodada.
@@ -233,6 +283,28 @@ function Result({ state }: { state: RoomState }) {
 
   return (
     <div className="round-result">
+      {state.public.game.status === "finished" ? (
+        <section className="final-story" aria-labelledby="final-story-title">
+          <p className="eyebrow">Oito rodadas concluídas</p>
+          <h2 id="final-story-title">
+            {players[0].score === players[1]?.score
+              ? "Partida empatada."
+              : `${[...players].sort((a, b) => b.score - a.score)[0].name} vence a partida.`}
+          </h2>
+          {state.public.game.epilogue ? (
+            <>
+              <h3>Epílogo</h3>
+              <p>{state.public.game.epilogue}</p>
+            </>
+          ) : null}
+          {state.public.game.storySummary ? (
+            <details>
+              <summary>Resumo da aventura</summary>
+              <p>{state.public.game.storySummary}</p>
+            </details>
+          ) : null}
+        </section>
+      ) : null}
       <section className="result-summary" aria-labelledby="result-title">
         <p className="eyebrow">Resultado confirmado</p>
         <h2 id="result-title">
@@ -277,7 +349,8 @@ function Result({ state }: { state: RoomState }) {
         <section className="story-continuation" aria-labelledby="story-title">
           <p className="card-number">A história continua</p>
           <h2 id="story-title">{round.continuation}</h2>
-          {round.nextSituation ? (
+          {round.nextSituation &&
+          state.public.game.round < state.public.game.maxRounds ? (
             <p>Próxima situação: {round.nextSituation}</p>
           ) : null}
         </section>
@@ -291,10 +364,17 @@ function RoundPhase({
   submitting,
   submitError,
   onSubmitAnswer,
+  submitErrorRetryable,
+  unavailable,
+  clockReceivedAt,
 }: { state: RoomState } & Pick<
   RoundExperienceProps,
-  "submitting" | "submitError" | "onSubmitAnswer"
->) {
+  | "submitting"
+  | "submitError"
+  | "onSubmitAnswer"
+  | "submitErrorRetryable"
+  | "clockReceivedAt"
+> & { unavailable: boolean }) {
   const { game, currentRound: round } = state.public;
   const phase =
     game.status === "paused" && game.pausedFrom ? game.pausedFrom : game.status;
@@ -356,6 +436,12 @@ function RoundPhase({
             submitting={submitting}
             submitError={submitError}
             onSubmitAnswer={onSubmitAnswer}
+            paused={game.status === "paused"}
+            unavailable={unavailable}
+            serverNow={state.public.control?.serverNow}
+            clockReceivedAt={clockReceivedAt}
+            remainingAnswerMs={state.public.control?.remainingAnswerMs}
+            submitErrorRetryable={submitErrorRetryable}
           />
         )}
         <OwnAnswer state={state} />
@@ -401,10 +487,22 @@ export function RoundExperience({
   submitting,
   submitError,
   onSubmitAnswer,
+  submitErrorRetryable,
+  syncError,
+  actionError,
+  actionPending = false,
+  onRefresh,
+  onAdvance,
+  onRetryNarrative,
+  clockReceivedAt,
 }: RoundExperienceProps) {
   const { game, players } = state.public;
   const effectivePhase =
     game.status === "paused" && game.pausedFrom ? game.pausedFrom : game.status;
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (game.status !== "answering") heading.current?.focus();
+  }, [game.status, game.round]);
 
   return (
     <main className="round-shell">
@@ -433,7 +531,7 @@ export function RoundExperience({
       <section className="round-heading" aria-labelledby="round-title">
         <div>
           <p className="eyebrow">{phaseLabels[game.status]}</p>
-          <h1 id="round-title">
+          <h1 id="round-title" ref={heading} tabIndex={-1}>
             {game.status === "finished"
               ? "Fim de jogo."
               : `Rodada ${game.round} de ${game.maxRounds}`}
@@ -451,6 +549,24 @@ export function RoundExperience({
           ))}
         </ol>
       </section>
+      <p className="adult-notice">
+        18+ · Ficção, violência ficcional, humor sombrio e linguagem forte.
+      </p>
+      {state.public.control?.demoMode ? (
+        <aside className="sync-banner">
+          Modo demonstração: julgamento determinístico, sem chamadas Gemini.
+        </aside>
+      ) : null}
+      {syncError ? (
+        <aside className="sync-banner" role="alert">
+          {syncError}
+          {onRefresh ? (
+            <button type="button" onClick={onRefresh}>
+              Reconectar
+            </button>
+          ) : null}
+        </aside>
+      ) : null}
 
       {game.status === "paused" ? (
         <aside className="pause-banner" role="status">
@@ -469,8 +585,65 @@ export function RoundExperience({
           submitting={submitting}
           submitError={submitError}
           onSubmitAnswer={onSubmitAnswer}
+          submitErrorRetryable={submitErrorRetryable}
+          unavailable={Boolean(syncError)}
+          clockReceivedAt={clockReceivedAt}
         />
       </div>
+      {actionError ? (
+        <p className="form-error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
+      {state.public.control?.workError ? (
+        <aside className="narrative-recovery" role="status">
+          <p>
+            Não foi possível concluir esta etapa da história. As respostas e o
+            placar confirmado foram preservados.
+          </p>
+          {onRetryNarrative ? (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={onRetryNarrative}
+              disabled={
+                !state.public.control.canRetry ||
+                actionPending ||
+                Boolean(syncError)
+              }
+            >
+              {actionPending
+                ? "Tentando novamente…"
+                : state.public.control.canRetry
+                  ? "Tentar novamente o narrador"
+                  : "Aguardando liberação do servidor…"}
+            </button>
+          ) : null}
+        </aside>
+      ) : null}
+      {game.status === "reveal" && !state.public.control?.workError ? (
+        <div className="round-actions">
+          {game.round === game.maxRounds ? (
+            <p role="status">Preparando o epílogo da aventura…</p>
+          ) : state.private.isHost && onAdvance ? (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={onAdvance}
+              disabled={actionPending || Boolean(syncError)}
+            >
+              {actionPending ? "Preparando próxima rodada…" : "Próxima rodada"}
+            </button>
+          ) : (
+            <p role="status">Aguardando o host continuar a aventura.</p>
+          )}
+        </div>
+      ) : null}
+      {game.status === "finished" ? (
+        <div className="round-actions">
+          <Link href="/">Voltar ao início</Link>
+        </div>
+      ) : null}
     </main>
   );
 }

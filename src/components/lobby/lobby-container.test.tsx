@@ -94,6 +94,39 @@ function realtimeHarness() {
 }
 
 describe("lobby sincronizado", () => {
+  it("mantém a resposta confirmada quando uma atualização falha", async () => {
+    const state = { ...unansweredState(), private: roomStateFixture.private };
+    const client = {
+      getRoomState: vi
+        .fn()
+        .mockResolvedValueOnce({ state })
+        .mockRejectedValue(
+          new RoomClientError(
+            "network",
+            "Conexão temporariamente perdida.",
+            true,
+          ),
+        ),
+      startRoom: vi.fn(),
+    };
+    const updates = realtimeHarness();
+    render(
+      <LobbyContainer
+        roomCode="ABC123"
+        client={client}
+        realtime={updates.realtime}
+        sessions={sessions()}
+      />,
+    );
+    expect(await screen.findByText("Agora é só aguardar.")).toBeDefined();
+    act(() => updates.notify());
+    expect(
+      await screen.findByText("Conexão temporariamente perdida."),
+    ).toBeDefined();
+    expect(screen.getByLabelText("Sua resposta").textContent).toContain(
+      roomStateFixture.private.answer!.text,
+    );
+  });
   it("reconsulta o estado após uma notificação e remove a inscrição ao sair", async () => {
     const firstState = waitingState({ playerCount: 1 });
     const convergedState = waitingState({ playerCount: 2 });

@@ -35,6 +35,13 @@ export function shouldAcceptRoomState(
     return false;
   }
 
+  if (current.public.control) {
+    return (
+      incoming.public.control !== undefined &&
+      incoming.public.control.revision >= current.public.control.revision
+    );
+  }
+
   const currentRound = current.public.game.round;
   const incomingRound = incoming.public.game.round;
 

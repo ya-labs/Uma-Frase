@@ -110,6 +110,82 @@ function unansweredState(deadline = "2026-09-30T12:00:10.000Z"): RoomState {
 }
 
 describe("experiência visual da rodada", () => {
+  it("corrige um relógio cliente adiantado usando o instante recebido do servidor", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2029-09-30T12:00:00Z");
+    const state = unansweredState();
+    state.public.control = {
+      revision: 1,
+      workError: false,
+      canRetry: false,
+      serverNow: "2026-09-30T12:00:00Z",
+    };
+    render(
+      <RoundExperience
+        state={state}
+        clockReceivedAt={Date.now()}
+        connectionStatus="connected"
+        lastSyncedAt={null}
+        submitting={false}
+        submitError={null}
+        onSubmitAnswer={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "10 segundos restantes",
+    );
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "9 segundos restantes",
+    );
+  });
+  it("não envia nem consome tempo visual durante uma pausa confirmada", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00Z");
+    const state = unansweredState();
+    state.public.game.status = "paused";
+    state.public.game.pausedFrom = "answering";
+    state.public.control = {
+      revision: 1,
+      workError: false,
+      canRetry: false,
+      remainingAnswerMs: 4000,
+    };
+    const { onSubmitAnswer } = renderState(state);
+    expect(screen.getByRole("textbox")).toHaveProperty("disabled", true);
+    act(() => vi.advanceTimersByTime(20000));
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "4 segundos restantes",
+    );
+    expect(onSubmitAnswer).not.toHaveBeenCalled();
+  });
+  it("exibe epílogo e não oferece nona rodada", () => {
+    const state = stateAt("finished");
+    state.public.game.round = 8;
+    state.public.game.epilogue = "Fim da aventura confirmada.";
+    state.public.game.storySummary = "Resumo confirmado.";
+    renderState(state);
+    expect(screen.getByText("Fim da aventura confirmada.")).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Próxima rodada" })).toBeNull();
+  });
+  it("não oferece retry narrativo sem autorização pública", () => {
+    const state = stateAt("judging_error");
+    state.public.control = { revision: 1, workError: true, canRetry: false };
+    render(
+      <RoundExperience
+        state={state}
+        connectionStatus="connected"
+        lastSyncedAt={null}
+        submitting={false}
+        submitError={null}
+        onSubmitAnswer={vi.fn()}
+        onRetryNarrative={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /aguardando liberação/i }),
+    ).toHaveProperty("disabled", true);
+  });
   it("mostra a geração sem inventar detalhes da rodada", () => {
     renderState(stateAt("generating"));
 
