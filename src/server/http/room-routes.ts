@@ -33,7 +33,7 @@ export interface RoomServicePort {
 
 type RoomRouteContext = { params: Promise<{ code: string }> };
 
-function validationError(error: z.ZodError): Response {
+export function validationError(error: z.ZodError): Response {
   const contractError: ContractError = {
     code: "validation_error",
     message: "A requisição possui dados inválidos.",
@@ -49,7 +49,7 @@ function validationError(error: z.ZodError): Response {
   return Response.json({ ok: false, error: contractError }, { status: 400 });
 }
 
-function operationError(error: unknown): Response {
+export function operationError(error: unknown): Response {
   if (error instanceof RoomServiceError) {
     return Response.json(
       { ok: false, error: error.contractError },
@@ -70,7 +70,7 @@ function operationError(error: unknown): Response {
   );
 }
 
-async function readJson(request: Request): Promise<unknown> {
+export async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json();
   } catch {
@@ -78,7 +78,7 @@ async function readJson(request: Request): Promise<unknown> {
   }
 }
 
-function bearerToken(request: Request): string | undefined {
+export function bearerToken(request: Request): string | undefined {
   const authorization = request.headers.get("authorization");
   const match = authorization?.match(/^Bearer\s+(.+)$/i);
   return match?.[1]?.trim() || undefined;

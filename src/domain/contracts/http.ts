@@ -51,7 +51,7 @@ export const submitAnswerCommandSchema = z
   .object({
     ...authenticatedRoomCommandShape,
     roundId: identifierSchema,
-    text: z.string().trim().min(1),
+    text: z.string().trim().min(1).max(2000),
   })
   .strict();
 

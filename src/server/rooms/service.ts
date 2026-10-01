@@ -34,7 +34,7 @@ export class RoomServiceError extends Error {
   }
 }
 
-function mapRepositoryError(error: unknown): never {
+export function mapRepositoryError(error: unknown): never {
   if (!(error instanceof RoomRepositoryError)) {
     throw error;
   }
