@@ -41,6 +41,10 @@ exclusivamente os IDs criados por cada execução. Capturas ficam em
 
 No CI, o job Database executa os mesmos cenários com Supabase local isolado e
 Chrome do runner, sem credenciais hospedadas nem chamadas Gemini.
+O serviço Auth local fica habilitado para que o CLI forneça as chaves de API ao
+teste. Isso não adiciona contas ao jogo: a identidade continua sendo o token
+opaco da sala. A configuração aceita chaves locais atuais e legadas sem
+imprimi-las em logs.
 
 ## Reconexão e autoridade
 

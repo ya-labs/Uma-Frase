@@ -11,15 +11,17 @@ if (process.env.CI) {
       stdio: ["ignore", "pipe", "pipe"],
     }),
   );
-  if (!status.API_URL || !status.SERVICE_ROLE_KEY || !status.ANON_KEY)
+  const serverKey = status.SERVICE_ROLE_KEY || status.SECRET_KEY;
+  const publicKey = status.PUBLISHABLE_KEY || status.ANON_KEY;
+  if (!status.API_URL || !serverKey || !publicKey)
     throw new Error(
       "O Supabase local não confirmou as variáveis necessárias para o teste.",
     );
   Object.assign(process.env, {
     SUPABASE_URL: status.API_URL,
-    SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: serverKey,
     NEXT_PUBLIC_SUPABASE_URL: status.API_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: status.ANON_KEY,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey,
   });
 }
 const baseURL = "http://127.0.0.1:3100";
