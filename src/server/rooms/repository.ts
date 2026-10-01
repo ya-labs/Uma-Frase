@@ -52,7 +52,7 @@ type PostgrestError = {
   message?: string;
 };
 
-function repositoryError(error: PostgrestError): RoomRepositoryError {
+export function repositoryError(error: PostgrestError): RoomRepositoryError {
   const message = error.message ?? "A operação da sala falhou.";
 
   if (error.code === "P0002") {

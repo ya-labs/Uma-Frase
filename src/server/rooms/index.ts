@@ -2,13 +2,15 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "../supabase";
 import { SupabaseRoomRepository } from "./repository";
-import { RoomService } from "./service";
+import { RoundService } from "../rounds/service";
+import { SupabaseRoundRepository } from "../rounds/repository";
 
-let roomService: RoomService | undefined;
+let roomService: RoundService | undefined;
 
-export function getRoomService(): RoomService {
-  roomService ??= new RoomService(
+export function getRoomService(): RoundService {
+  roomService ??= new RoundService(
     new SupabaseRoomRepository(createSupabaseAdminClient()),
+    new SupabaseRoundRepository(createSupabaseAdminClient()),
   );
 
   return roomService;
