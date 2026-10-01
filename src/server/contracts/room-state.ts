@@ -23,6 +23,8 @@ export const serverRoomStateSchema = z
         workError: z.boolean(),
         epilogue: z.string().max(4000).nullable(),
         suggestedSituation: z.string().max(2000).nullable().optional(),
+        serverNow: z.iso.datetime({ offset: true }).optional(),
+        remainingAnswerMs: z.number().int().nonnegative().nullable().optional(),
       })
       .strict()
       .optional(),

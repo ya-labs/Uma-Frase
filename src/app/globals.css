@@ -649,6 +649,11 @@ footer p {
   line-height: 0.92;
 }
 
+/* Phase announcements focus this heading; it is not an interactive tab stop. */
+.round-heading h1:focus {
+  outline: none;
+}
+
 .scoreboard {
   margin: 0;
   padding: 0;
@@ -772,7 +777,7 @@ footer p {
 
 .answer-composer {
   display: grid;
-  grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   min-height: 26rem;
 }
@@ -986,6 +991,103 @@ footer p {
   grid-column: 1 / -1;
   min-height: 20rem;
   background: rgb(167 139 250 / 7%);
+}
+
+.round-timer {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+}
+
+.round-timer strong {
+  font-size: 3.5rem;
+}
+
+.answer-field {
+  padding: 1.5rem;
+}
+
+.adult-notice,
+.privacy-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.sync-banner,
+.narrative-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--purple);
+  border-radius: 0.5rem;
+  background: var(--panel);
+  line-height: 1.6;
+}
+
+.sync-banner button {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  color: var(--ink);
+  background: var(--panel-soft);
+  cursor: pointer;
+}
+
+.final-story {
+  grid-column: 1 / -1;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--purple);
+  border-radius: 0.5rem;
+  background: var(--panel);
+  line-height: 1.7;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.final-story h2 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.1;
+}
+
+.final-story summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+
+.round-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  gap: 1rem;
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 4px;
+}
+
+.scoreboard li > span,
+.round-shell {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .round-content {
+    grid-template-columns: 1fr;
+  }
+  .situation-card {
+    min-height: 16rem;
+  }
 }
 
 @media (max-width: 760px) {

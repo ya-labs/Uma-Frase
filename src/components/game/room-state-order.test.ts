@@ -24,6 +24,16 @@ function stateAt(
 }
 
 describe("ordenação dos estados recebidos", () => {
+  it("descarta revisões antigas mesmo com a mesma fase ou uma pausa atrasada", () => {
+    const current = stateAt("answering");
+    current.public.control = { revision: 5, workError: false, canRetry: false };
+    const old = stateAt("paused");
+    old.public.control = { revision: 4, workError: false, canRetry: false };
+    expect(shouldAcceptRoomState(current, old)).toBe(false);
+    old.public.control.revision = 6;
+    expect(shouldAcceptRoomState(current, old)).toBe(true);
+    expect(shouldAcceptRoomState(current, stateAt("answering"))).toBe(false);
+  });
   it("aceita repetições e avanços confirmados pelo servidor", () => {
     const answering = stateAt("answering");
 

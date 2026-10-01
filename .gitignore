@@ -18,3 +18,7 @@
 # Supabase local runtime
 /supabase/.branches
 /supabase/.temp
+
+# Browser QA artifacts
+/playwright-report
+/test-results

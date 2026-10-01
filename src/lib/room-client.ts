@@ -6,6 +6,9 @@ import {
   joinRoomResponseSchema,
   startRoomResponseSchema,
   submitAnswerResponseSchema,
+  setRoomPresenceResponseSchema,
+  advanceRoomResponseSchema,
+  retryRoomResponseSchema,
   type ContractError,
   type ContractErrorResponse,
   type CreateRoomCommand,
@@ -46,6 +49,20 @@ export type RoomClient = {
   joinRoom(command: JoinRoomCommand): Promise<RoomSession>;
   getRoomState(roomCode: string, playerToken: string): Promise<RoomStateResult>;
   startRoom(roomCode: string, playerToken: string): Promise<RoomStateResult>;
+  setPresence(
+    roomCode: string,
+    playerToken: string,
+    isConnected: boolean,
+  ): Promise<RoomStateResult>;
+  advanceRoom(
+    roomCode: string,
+    playerToken: string,
+    roundId: string,
+  ): Promise<RoomStateResult>;
+  retryNarrative(
+    roomCode: string,
+    playerToken: string,
+  ): Promise<RoomStateResult>;
   submitAnswer(
     roomCode: string,
     playerToken: string,
@@ -188,6 +205,46 @@ export function createRoomClient({
           headers: authenticatedHeaders(playerToken),
         },
         startRoomResponseSchema,
+      );
+    },
+
+    setPresence(roomCode, playerToken, isConnected) {
+      return request(
+        `/api/rooms/${encodeURIComponent(roomCode)}/presence`,
+        {
+          method: "POST",
+          headers: {
+            ...authenticatedHeaders(playerToken),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ isConnected }),
+          keepalive: !isConnected,
+        },
+        setRoomPresenceResponseSchema,
+      );
+    },
+    advanceRoom(roomCode, playerToken, roundId) {
+      return request(
+        `/api/rooms/${encodeURIComponent(roomCode)}/advance`,
+        {
+          method: "POST",
+          headers: {
+            ...authenticatedHeaders(playerToken),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ roundId }),
+        },
+        advanceRoomResponseSchema,
+      );
+    },
+    retryNarrative(roomCode, playerToken) {
+      return request(
+        `/api/rooms/${encodeURIComponent(roomCode)}/retry`,
+        {
+          method: "POST",
+          headers: authenticatedHeaders(playerToken),
+        },
+        retryRoomResponseSchema,
       );
     },
 
