@@ -34,13 +34,15 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
 button,
 a,
-input {
+input,
+textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -768,6 +770,123 @@ footer p {
   min-height: 26rem;
 }
 
+.answer-composer {
+  display: grid;
+  grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: 26rem;
+}
+
+.round-timer,
+.answer-field {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--panel);
+}
+
+.round-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+}
+
+.round-timer span,
+.round-timer small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.round-timer strong {
+  color: var(--purple);
+  font-size: clamp(4rem, 8vw, 7rem);
+  line-height: 1;
+}
+
+.round-timer.urgent strong {
+  color: var(--danger);
+}
+
+.answer-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.answer-field label {
+  margin-bottom: 0.75rem;
+  color: #ddd6fe;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.answer-field textarea {
+  width: 100%;
+  min-height: 9rem;
+  resize: vertical;
+  padding: 1rem;
+  border: 1px solid #493d59;
+  border-radius: 0.25rem;
+  outline: 0;
+  background: #08070a;
+  color: var(--ink);
+  line-height: 1.5;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.answer-field textarea:focus-visible {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgb(167 139 250 / 22%);
+}
+
+.answer-field textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.answer-field textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.answer-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.75rem 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.word-count {
+  color: var(--purple);
+  font-weight: 800;
+}
+
+.word-count.over,
+.answer-warning,
+.answer-deadline {
+  color: var(--danger);
+}
+
+.answer-warning,
+.answer-deadline {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.answer-field .primary-action {
+  width: 100%;
+}
+
 .answer-state h2 {
   margin: 0;
   font-size: clamp(2rem, 4vw, 3.5rem);
@@ -994,12 +1113,23 @@ footer p {
 
   .situation-card,
   .limit-pending,
-  .answer-state {
+  .answer-state,
+  .answer-composer {
     min-height: 20rem;
   }
 
-  .answer-state {
+  .answer-state,
+  .answer-composer {
     grid-template-columns: 1fr;
+  }
+
+  .round-timer {
+    min-height: 9rem;
+  }
+
+  .answer-meta {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .word-limit {

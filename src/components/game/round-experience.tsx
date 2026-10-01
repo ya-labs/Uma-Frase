@@ -1,12 +1,31 @@
-import Link from "next/link";
+"use client";
 
-import type { GameStatus, PublicRoundState, RoomState } from "@/domain";
+import Link from "next/link";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  checkWordLimit,
+  countWords,
+  type GameStatus,
+  type PublicRoundState,
+  type RoomState,
+} from "@/domain";
 import type { RoomConnectionStatus } from "@/lib/room-realtime";
 
 type RoundExperienceProps = {
   state: RoomState;
   connectionStatus: RoomConnectionStatus;
   lastSyncedAt: string | null;
+  submitting: boolean;
+  submitError: string | null;
+  onSubmitAnswer: (roundId: string, text: string) => void;
 };
 
 const connectionLabels: Record<RoomConnectionStatus, string> = {
@@ -45,6 +64,163 @@ function OwnAnswer({ state }: { state: RoomState }) {
       <span>Sua resposta</span>
       <p>“{state.private.answer.text}”</p>
     </aside>
+  );
+}
+
+function remainingMilliseconds(deadline: string | null, now: number): number {
+  if (!deadline) return 0;
+  return Math.max(0, Date.parse(deadline) - now);
+}
+
+type AnswerComposerProps = Pick<
+  RoundExperienceProps,
+  "submitting" | "submitError" | "onSubmitAnswer"
+> & {
+  round: PublicRoundState;
+};
+
+function AnswerComposer({
+  round,
+  submitting,
+  submitError,
+  onSubmitAnswer,
+}: AnswerComposerProps) {
+  const [draft, setDraft] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  const automaticAttemptedRound = useRef<string | null>(null);
+  const deadline = round.answerDeadlineAt;
+  const remainingMs = remainingMilliseconds(deadline, now);
+  const remainingSeconds = Math.ceil(remainingMs / 1000);
+  const wordCount = useMemo(() => countWords(draft), [draft]);
+  const wordLimit = round.wordLimit;
+  const isWithinLimit =
+    wordLimit !== null && checkWordLimit(draft, wordLimit).isWithinLimit;
+  const hasText = draft.trim().length > 0;
+  const isValid = hasText && isWithinLimit;
+  const expired = deadline !== null && remainingMs === 0;
+  const canSubmitBeforeDeadline =
+    deadline !== null && !expired && isValid && !submitting;
+  const canRetry = submitError !== null && isValid && !submitting;
+
+  useEffect(() => {
+    if (!deadline) return;
+
+    const interval = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(interval);
+  }, [deadline]);
+
+  useEffect(() => {
+    if (
+      deadline === null ||
+      remainingMs > 0 ||
+      !isValid ||
+      submitting ||
+      automaticAttemptedRound.current === round.id
+    ) {
+      return;
+    }
+
+    automaticAttemptedRound.current = round.id;
+    onSubmitAnswer(round.id, draft);
+  }, [
+    deadline,
+    draft,
+    isValid,
+    onSubmitAnswer,
+    remainingMs,
+    round.id,
+    submitting,
+  ]);
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      (!canSubmitBeforeDeadline && !canRetry) ||
+      (automaticAttemptedRound.current === round.id && !canRetry)
+    ) {
+      return;
+    }
+
+    automaticAttemptedRound.current = round.id;
+    onSubmitAnswer(round.id, draft);
+  }
+
+  function submitFromKeyboard(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  }
+
+  return (
+    <form className="answer-composer" onSubmit={submit}>
+      <div
+        className={remainingSeconds <= 3 ? "round-timer urgent" : "round-timer"}
+        role="timer"
+        aria-live="off"
+        aria-label={`${remainingSeconds} segundos restantes`}
+      >
+        <span>Tempo</span>
+        <strong>{deadline ? remainingSeconds : "—"}</strong>
+        <small>segundos</small>
+      </div>
+
+      <div className="answer-field">
+        <label htmlFor={`answer-${round.id}`}>Sua resposta</label>
+        <textarea
+          id={`answer-${round.id}`}
+          name="answer"
+          rows={4}
+          value={draft}
+          disabled={submitting || expired || deadline === null}
+          aria-invalid={!isWithinLimit && wordCount > 0}
+          aria-describedby={`answer-help-${round.id}`}
+          placeholder="Escreva uma única frase…"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={submitFromKeyboard}
+          autoFocus
+        />
+        <div className="answer-meta" id={`answer-help-${round.id}`}>
+          <span
+            className={
+              !isWithinLimit && wordCount > 0 ? "word-count over" : "word-count"
+            }
+            aria-live="polite"
+          >
+            {wordCount} / {wordLimit ?? "—"} palavras
+          </span>
+          <span>Ctrl ou ⌘ + Enter para enviar</span>
+        </div>
+        {!isWithinLimit && wordCount > 0 ? (
+          <p className="answer-warning" role="alert">
+            Reduza sua frase para respeitar o limite da rodada.
+          </p>
+        ) : null}
+        {expired ? (
+          <p className="answer-deadline" role="status">
+            Prazo visual encerrado. O servidor confirmará se a resposta foi
+            aceita.
+          </p>
+        ) : null}
+        {submitError ? (
+          <p className="form-error" role="alert">
+            {submitError}
+          </p>
+        ) : null}
+        <button
+          className="primary-action"
+          type="submit"
+          disabled={!canSubmitBeforeDeadline && !canRetry}
+        >
+          {submitting
+            ? "Enviando…"
+            : submitError
+              ? "Tentar novamente"
+              : "Enviar resposta"}
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -110,7 +286,15 @@ function Result({ state }: { state: RoomState }) {
   );
 }
 
-function RoundPhase({ state }: { state: RoomState }) {
+function RoundPhase({
+  state,
+  submitting,
+  submitError,
+  onSubmitAnswer,
+}: { state: RoomState } & Pick<
+  RoundExperienceProps,
+  "submitting" | "submitError" | "onSubmitAnswer"
+>) {
   const { game, currentRound: round } = state.public;
   const phase =
     game.status === "paused" && game.pausedFrom ? game.pausedFrom : game.status;
@@ -153,28 +337,27 @@ function RoundPhase({ state }: { state: RoomState }) {
     return (
       <>
         <Situation round={round} />
-        <section className="answer-state" aria-labelledby="answer-title">
-          <div className="word-limit" aria-label="Limite de palavras">
-            <span>Limite revelado</span>
-            <strong>{round.wordLimit ?? "—"}</strong>
-            <small>palavras</small>
-          </div>
-          <div>
-            <p className="eyebrow">
-              {state.private.answer ? "Resposta enviada" : "Sua resposta"}
-            </p>
-            <h2 id="answer-title">
-              {state.private.answer
-                ? "Agora é só aguardar."
-                : "Escreva uma única frase."}
-            </h2>
-            <p>
-              {state.private.answer
-                ? "Sua frase permanece privada até a revelação do servidor."
-                : "Prepare uma frase respeitando o limite confirmado para esta rodada."}
-            </p>
-          </div>
-        </section>
+        {state.private.answer ? (
+          <section className="answer-state" aria-labelledby="answer-title">
+            <div className="word-limit" aria-label="Limite de palavras">
+              <span>Limite revelado</span>
+              <strong>{round.wordLimit ?? "—"}</strong>
+              <small>palavras</small>
+            </div>
+            <div>
+              <p className="eyebrow">Resposta enviada</p>
+              <h2 id="answer-title">Agora é só aguardar.</h2>
+              <p>Sua frase permanece privada até a revelação do servidor.</p>
+            </div>
+          </section>
+        ) : (
+          <AnswerComposer
+            round={round}
+            submitting={submitting}
+            submitError={submitError}
+            onSubmitAnswer={onSubmitAnswer}
+          />
+        )}
         <OwnAnswer state={state} />
       </>
     );
@@ -215,6 +398,9 @@ export function RoundExperience({
   state,
   connectionStatus,
   lastSyncedAt,
+  submitting,
+  submitError,
+  onSubmitAnswer,
 }: RoundExperienceProps) {
   const { game, players } = state.public;
   const effectivePhase =
@@ -278,7 +464,12 @@ export function RoundExperience({
       ) : null}
 
       <div className="round-content" key={state.public.currentRound?.id}>
-        <RoundPhase state={state} />
+        <RoundPhase
+          state={state}
+          submitting={submitting}
+          submitError={submitError}
+          onSubmitAnswer={onSubmitAnswer}
+        />
       </div>
     </main>
   );

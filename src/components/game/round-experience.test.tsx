@@ -1,12 +1,21 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStatus, RoomState } from "@/domain";
 import { roomStateFixture } from "@/domain/contracts/fixtures";
 
 import { RoundExperience } from "./round-experience";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function stateAt(status: GameStatus): RoomState {
   const revealsResult = status === "reveal" || status === "finished";
@@ -56,14 +65,48 @@ function stateAt(status: GameStatus): RoomState {
   };
 }
 
-function renderState(state: RoomState) {
-  return render(
+function renderState(
+  state: RoomState,
+  options: {
+    submitting?: boolean;
+    submitError?: string | null;
+    onSubmitAnswer?: (roundId: string, text: string) => void;
+  } = {},
+) {
+  const onSubmitAnswer = options.onSubmitAnswer ?? vi.fn();
+  const view = render(
     <RoundExperience
       state={state}
       connectionStatus="connected"
       lastSyncedAt="12:00:00"
+      submitting={options.submitting ?? false}
+      submitError={options.submitError ?? null}
+      onSubmitAnswer={onSubmitAnswer}
     />,
   );
+
+  return { ...view, onSubmitAnswer };
+}
+
+function unansweredState(deadline = "2026-09-30T12:00:10.000Z"): RoomState {
+  const answering = stateAt("answering");
+
+  return {
+    ...answering,
+    public: {
+      ...answering.public,
+      players: answering.public.players.map((player) => ({
+        ...player,
+        hasAnswered:
+          player.id === answering.private.playerId ? false : player.hasAnswered,
+      })),
+      currentRound: {
+        ...answering.public.currentRound!,
+        answerDeadlineAt: deadline,
+      },
+    },
+    private: { ...answering.private, answer: null },
+  };
 }
 
 describe("experiência visual da rodada", () => {
@@ -93,6 +136,141 @@ describe("experiência visual da rodada", () => {
     expect(screen.getByLabelText("Sua resposta").textContent).toContain(
       roomStateFixture.private.answer!.text,
     );
+  });
+
+  it("conta palavras em tempo real e bloqueia visualmente o excesso", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00.000Z");
+    renderState(unansweredState());
+    const field = screen.getByRole("textbox", { name: "Sua resposta" });
+    const submit = screen.getByRole("button", { name: /enviar resposta/i });
+
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "10 segundos restantes",
+    );
+
+    fireEvent.change(field, { target: { value: "Olá, mundo!" } });
+    expect(screen.getByText("2 / 5 palavras")).toBeDefined();
+    expect(submit).toHaveProperty("disabled", false);
+
+    fireEvent.change(field, {
+      target: { value: "uma frase com seis palavras agora" },
+    });
+    expect(screen.getByText("6 / 5 palavras")).toBeDefined();
+    expect(screen.getByRole("alert").textContent).toContain("Reduza sua frase");
+    expect(submit).toHaveProperty("disabled", true);
+  });
+
+  it("envia uma única vez por clique repetido e pelo atalho de teclado", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00.000Z");
+    const clickSubmit = vi.fn();
+    const first = renderState(unansweredState(), {
+      onSubmitAnswer: clickSubmit,
+    });
+    const field = screen.getByRole("textbox", { name: "Sua resposta" });
+
+    fireEvent.change(field, { target: { value: "Eu sigo em frente." } });
+    const button = screen.getByRole("button", { name: /enviar resposta/i });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(clickSubmit).toHaveBeenCalledTimes(1);
+    expect(clickSubmit).toHaveBeenCalledWith("round-1", "Eu sigo em frente.");
+
+    first.unmount();
+
+    const keyboardSubmit = vi.fn();
+    renderState(unansweredState(), { onSubmitAnswer: keyboardSubmit });
+    const keyboardField = screen.getByRole("textbox", {
+      name: "Sua resposta",
+    });
+    fireEvent.change(keyboardField, { target: { value: "Outra resposta." } });
+    fireEvent.keyDown(keyboardField, { key: "Enter", ctrlKey: true });
+
+    expect(keyboardSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("tenta enviar o texto válido uma única vez quando o prazo zera", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00.000Z");
+    const onSubmitAnswer = vi.fn();
+    renderState(unansweredState("2026-09-30T12:00:01.000Z"), {
+      onSubmitAnswer,
+    });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Sua resposta" }), {
+      target: { value: "Resposta automática." },
+    });
+
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "0 segundos restantes",
+    );
+
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it("corrige o cronômetro quando recebe um novo prazo do servidor", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00.000Z");
+    const onSubmitAnswer = vi.fn();
+    const view = renderState(unansweredState(), { onSubmitAnswer });
+
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "8 segundos restantes",
+    );
+
+    view.rerender(
+      <RoundExperience
+        state={unansweredState("2026-09-30T12:00:05.000Z")}
+        connectionStatus="connected"
+        lastSyncedAt="12:00:02"
+        submitting={false}
+        submitError={null}
+        onSubmitAnswer={onSubmitAnswer}
+      />,
+    );
+
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "3 segundos restantes",
+    );
+  });
+
+  it("preserva o texto e permite repetir após uma falha recuperável", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00.000Z");
+    const onSubmitAnswer = vi.fn();
+    const state = unansweredState();
+    const view = renderState(state, { onSubmitAnswer });
+    const field = screen.getByRole("textbox", { name: "Sua resposta" });
+
+    fireEvent.change(field, { target: { value: "Minha frase permanece." } });
+    fireEvent.click(screen.getByRole("button", { name: /enviar resposta/i }));
+
+    view.rerender(
+      <RoundExperience
+        state={state}
+        connectionStatus="connected"
+        lastSyncedAt="12:00:00"
+        submitting={false}
+        submitError="Não foi possível enviar sua resposta. Tente novamente."
+        onSubmitAnswer={onSubmitAnswer}
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Sua resposta",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Minha frase permanece.");
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(2);
   });
 
   it("mantém a resposta adversária oculta durante o julgamento", () => {
