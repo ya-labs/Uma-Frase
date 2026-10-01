@@ -44,6 +44,24 @@ function waitingState({
   };
 }
 
+function unansweredState(): RoomState {
+  return {
+    public: {
+      ...roomStateFixture.public,
+      game: { ...roomStateFixture.public.game, status: "answering" },
+      players: roomStateFixture.public.players.map((player) => ({
+        ...player,
+        hasAnswered: false,
+      })),
+      currentRound: {
+        ...roomStateFixture.public.currentRound!,
+        answerDeadlineAt: "2099-09-30T12:00:10.000Z",
+      },
+    },
+    private: { ...roomStateFixture.private, answer: null },
+  };
+}
+
 function sessions(playerToken = "opaque-token"): RoomSessionStore {
   return {
     getPlayerToken: vi.fn(() => playerToken || null),
@@ -181,7 +199,9 @@ describe("lobby sincronizado", () => {
       await startRequest;
     });
 
-    expect(await screen.findByText("Partida iniciada.")).toBeDefined();
+    expect(
+      await screen.findByText("Criando a situação da rodada…"),
+    ).toBeDefined();
   });
 
   it("não oferece a ação de início ao convidado", async () => {
@@ -265,5 +285,111 @@ describe("lobby sincronizado", () => {
     );
     expect(client.getRoomState).not.toHaveBeenCalled();
     expect(roomRealtime.realtime.subscribe).not.toHaveBeenCalled();
+  });
+
+  it("mantém somente um envio em andamento diante de eventos repetidos", async () => {
+    let confirmAnswer: ((result: { state: RoomState }) => void) | undefined;
+    const state = unansweredState();
+    const confirmedState: RoomState = {
+      ...state,
+      public: {
+        ...state.public,
+        players: state.public.players.map((player) => ({
+          ...player,
+          hasAnswered:
+            player.id === state.private.playerId ? true : player.hasAnswered,
+        })),
+      },
+      private: { ...state.private, answer: roomStateFixture.private.answer },
+    };
+    const answerRequest = new Promise<{ state: RoomState }>((resolve) => {
+      confirmAnswer = resolve;
+    });
+    const client = {
+      getRoomState: vi.fn().mockResolvedValue({ state }),
+      startRoom: vi.fn(),
+      submitAnswer: vi.fn().mockReturnValue(answerRequest),
+    } satisfies Pick<RoomClient, "getRoomState" | "startRoom" | "submitAnswer">;
+
+    render(
+      <LobbyContainer
+        roomCode="ABC123"
+        client={client}
+        realtime={realtimeHarness().realtime}
+        sessions={sessions()}
+      />,
+    );
+
+    fireEvent.change(
+      await screen.findByRole("textbox", { name: "Sua resposta" }),
+      { target: { value: "Eu sigo em frente." } },
+    );
+    const submit = screen.getByRole("button", { name: /enviar resposta/i });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(client.submitAnswer).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      confirmAnswer?.({ state: confirmedState });
+      await answerRequest;
+    });
+
+    expect(await screen.findByText("Agora é só aguardar.")).toBeDefined();
+  });
+
+  it("preserva a frase e permite repetir após falha recuperável", async () => {
+    const state = unansweredState();
+    const confirmedState: RoomState = {
+      ...state,
+      public: {
+        ...state.public,
+        players: state.public.players.map((player) => ({
+          ...player,
+          hasAnswered:
+            player.id === state.private.playerId ? true : player.hasAnswered,
+        })),
+      },
+      private: { ...state.private, answer: roomStateFixture.private.answer },
+    };
+    const client = {
+      getRoomState: vi.fn().mockResolvedValue({ state }),
+      startRoom: vi.fn(),
+      submitAnswer: vi
+        .fn()
+        .mockRejectedValueOnce(
+          new RoomClientError(
+            "network",
+            "Não foi possível enviar sua resposta. Tente novamente.",
+            true,
+          ),
+        )
+        .mockResolvedValueOnce({ state: confirmedState }),
+    } satisfies Pick<RoomClient, "getRoomState" | "startRoom" | "submitAnswer">;
+
+    render(
+      <LobbyContainer
+        roomCode="ABC123"
+        client={client}
+        realtime={realtimeHarness().realtime}
+        sessions={sessions()}
+      />,
+    );
+
+    const field = await screen.findByRole("textbox", {
+      name: "Sua resposta",
+    });
+    fireEvent.change(field, { target: { value: "Minha frase permanece." } });
+    fireEvent.click(screen.getByRole("button", { name: /enviar resposta/i }));
+
+    expect(await screen.findByRole("alert")).toHaveProperty(
+      "textContent",
+      "Não foi possível enviar sua resposta. Tente novamente.",
+    );
+    expect((field as HTMLTextAreaElement).value).toBe("Minha frase permanece.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(await screen.findByText("Agora é só aguardar.")).toBeDefined();
+    expect(client.submitAnswer).toHaveBeenCalledTimes(2);
   });
 });

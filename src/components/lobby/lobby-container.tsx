@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 
 import type { RoomState } from "@/domain";
@@ -19,11 +25,14 @@ import {
   type RoomSessionStore,
 } from "@/lib/room-session";
 
+import { RoundExperience } from "../game/round-experience";
+import { shouldAcceptRoomState } from "../game/room-state-order";
 import { Lobby } from "./lobby";
 
 type LobbyContainerProps = {
   roomCode: string;
-  client?: Pick<RoomClient, "getRoomState" | "startRoom">;
+  client?: Pick<RoomClient, "getRoomState" | "startRoom"> &
+    Partial<Pick<RoomClient, "submitAnswer">>;
   realtime?: RoomRealtime;
   sessions?: RoomSessionStore;
 };
@@ -62,6 +71,9 @@ export function LobbyContainer({
     useState<RoomConnectionStatus>("connecting");
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [answerSubmitting, setAnswerSubmitting] = useState(false);
+  const [answerError, setAnswerError] = useState<string | null>(null);
+  const answerRequestInFlight = useRef(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [notificationsReceived, setNotificationsReceived] = useState(0);
   const [retry, setRetry] = useState(0);
@@ -93,7 +105,16 @@ export function LobbyContainer({
         try {
           const result = await client.getRoomState(roomCode, activePlayerToken);
           if (active) {
-            setView({ status: "ready", state: result.state });
+            setView((currentView) => {
+              if (
+                currentView.status === "ready" &&
+                !shouldAcceptRoomState(currentView.state, result.state)
+              ) {
+                return currentView;
+              }
+
+              return { status: "ready", state: result.state };
+            });
             setLastSyncedAt(
               new Date().toLocaleTimeString("pt-BR", { timeStyle: "medium" }),
             );
@@ -144,7 +165,16 @@ export function LobbyContainer({
 
     try {
       const result = await client.startRoom(roomCode, playerToken);
-      setView({ status: "ready", state: result.state });
+      setView((currentView) => {
+        if (
+          currentView.status === "ready" &&
+          !shouldAcceptRoomState(currentView.state, result.state)
+        ) {
+          return currentView;
+        }
+
+        return { status: "ready", state: result.state };
+      });
     } catch (error) {
       setActionError(
         publicErrorMessage(
@@ -154,6 +184,50 @@ export function LobbyContainer({
       );
     } finally {
       setStarting(false);
+    }
+  }
+
+  async function handleSubmitAnswer(roundId: string, text: string) {
+    if (!playerToken || !client.submitAnswer || answerRequestInFlight.current) {
+      if (!client.submitAnswer) {
+        setAnswerError(
+          "O envio ainda não está disponível neste servidor. Tente novamente após a integração do motor de rodadas.",
+        );
+      }
+      return;
+    }
+
+    answerRequestInFlight.current = true;
+    setAnswerSubmitting(true);
+    setAnswerError(null);
+
+    try {
+      const result = await client.submitAnswer(
+        roomCode,
+        playerToken,
+        roundId,
+        text.trim(),
+      );
+      setView((currentView) => {
+        if (
+          currentView.status === "ready" &&
+          !shouldAcceptRoomState(currentView.state, result.state)
+        ) {
+          return currentView;
+        }
+
+        return { status: "ready", state: result.state };
+      });
+    } catch (error) {
+      setAnswerError(
+        publicErrorMessage(
+          error,
+          "Não foi possível enviar sua resposta. Tente novamente.",
+        ),
+      );
+    } finally {
+      answerRequestInFlight.current = false;
+      setAnswerSubmitting(false);
     }
   }
 
@@ -215,6 +289,21 @@ export function LobbyContainer({
           <Link href="/">Voltar ao início</Link>
         </div>
       </main>
+    );
+  }
+
+  if (view.state.public.game.status !== "waiting") {
+    return (
+      <RoundExperience
+        state={view.state}
+        connectionStatus={connectionStatus}
+        lastSyncedAt={lastSyncedAt}
+        submitting={answerSubmitting}
+        submitError={answerError}
+        onSubmitAnswer={(roundId, text) =>
+          void handleSubmitAnswer(roundId, text)
+        }
+      />
     );
   }
 

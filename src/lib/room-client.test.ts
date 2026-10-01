@@ -55,6 +55,37 @@ describe("cliente HTTP das salas", () => {
     );
   });
 
+  it("envia somente rodada e texto no corpo autenticado da resposta", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ ok: true, data: { state: roomStateFixture } }),
+      );
+    const client = createRoomClient({ fetch: fetchMock });
+
+    await client.submitAnswer(
+      "ABC123",
+      "opaque-token",
+      "round-1",
+      "  Eu atravesso a porta.  ",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/rooms/ABC123/answer",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer opaque-token",
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          roundId: "round-1",
+          text: "  Eu atravesso a porta.  ",
+        }),
+      }),
+    );
+  });
+
   it("converte erros do contrato em mensagens públicas uniformes", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse(

@@ -5,16 +5,19 @@ import {
   getRoomStateResponseSchema,
   joinRoomResponseSchema,
   startRoomResponseSchema,
+  submitAnswerResponseSchema,
   type ContractError,
   type ContractErrorResponse,
   type CreateRoomCommand,
   type CreateRoomResponse,
   type GetRoomStateResponse,
   type JoinRoomCommand,
+  type SubmitAnswerResponse,
 } from "@/domain";
 
 type RoomSession = Extract<CreateRoomResponse, { ok: true }>["data"];
 type RoomStateResult = Extract<GetRoomStateResponse, { ok: true }>["data"];
+type SubmitAnswerResult = Extract<SubmitAnswerResponse, { ok: true }>["data"];
 type OperationResponse<TData> =
   { ok: true; data: TData } | ContractErrorResponse;
 
@@ -43,6 +46,12 @@ export type RoomClient = {
   joinRoom(command: JoinRoomCommand): Promise<RoomSession>;
   getRoomState(roomCode: string, playerToken: string): Promise<RoomStateResult>;
   startRoom(roomCode: string, playerToken: string): Promise<RoomStateResult>;
+  submitAnswer(
+    roomCode: string,
+    playerToken: string,
+    roundId: string,
+    text: string,
+  ): Promise<SubmitAnswerResult>;
 };
 
 type RoomClientOptions = {
@@ -179,6 +188,21 @@ export function createRoomClient({
           headers: authenticatedHeaders(playerToken),
         },
         startRoomResponseSchema,
+      );
+    },
+
+    submitAnswer(roomCode, playerToken, roundId, text) {
+      return request(
+        `/api/rooms/${encodeURIComponent(roomCode)}/answer`,
+        {
+          method: "POST",
+          headers: {
+            ...authenticatedHeaders(playerToken),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ roundId, text }),
+        },
+        submitAnswerResponseSchema,
       );
     },
   };
