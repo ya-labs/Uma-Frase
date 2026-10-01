@@ -7,7 +7,7 @@ adquirem primeiro o mesmo bloqueio de partida. As permissões são exclusivas de
 
 O servidor sorteia uma vez o limite usando os pesos ajustáveis
 `[1,2,2,10,10,10,10,10,10,10,2,2,2,2,2]`. A situação é exibida por dois segundos
-antes de abrir um prazo de dez segundos calculado pelo banco. Leituras e
+antes de abrir um prazo de um minuto calculado pelo banco. Leituras e
 operações conferem o prazo; não há worker dependente de memória de uma instância.
 Sem clientes conectados, a transição vencida é confirmada na próxima operação,
 sem aceitar respostas tardias nem estender um prazo já iniciado.
@@ -19,9 +19,13 @@ mesmo de `String.trim` e `\s` no domínio JavaScript. O limite de transporte é
 2.000 caracteres, além do limite de palavras da rodada.
 
 Uma resposta concede um ponto; nenhuma não concede ponto; duas encaminham para
-`judging`. A integração narrativa e as próximas rodadas pertencem à #21. O
+`judging` imediatamente, sem esperar o minuto terminar. A integração narrativa e as próximas rodadas pertencem à #21. O
 estado privado da sala é projetado por `buildRoomState`, que só publica textos
 adversários e resultado em `reveal`/`finished`.
+
+A migration `20261001202103_one_minute_answer_window.sql` amplia somente os
+novos prazos. Rodadas já abertas mantêm o prazo confirmado. Pausas preservam o
+tempo restante, limitado a 60.000 ms, sem reiniciar o minuto na reconexão.
 
 ## Verificação
 

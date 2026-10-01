@@ -31,7 +31,7 @@
 
 - A partida tera dois jogadores e oito rodadas.
 - Nao havera login.
-- Cada rodada tera dez segundos para resposta.
+- Cada rodada tera um minuto para resposta, encerrando antes se ambos enviarem.
 - O limite sera revelado depois da situacao.
 - Respostas serao secretas ate o encerramento da rodada.
 - Uma resposta vence automaticamente contra uma ausencia.

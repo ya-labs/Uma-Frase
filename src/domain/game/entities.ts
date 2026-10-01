@@ -1,6 +1,6 @@
 export const MAX_PLAYERS = 2 as const;
 export const MAX_ROUNDS = 8 as const;
-export const ANSWER_DURATION_SECONDS = 10 as const;
+export const ANSWER_DURATION_SECONDS = 60 as const;
 export const MIN_WORD_LIMIT = 1 as const;
 export const MAX_WORD_LIMIT = 15 as const;
 

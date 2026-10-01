@@ -7,7 +7,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { GameStatus, RoomState } from "@/domain";
+import {
+  ANSWER_DURATION_SECONDS,
+  type GameStatus,
+  type RoomState,
+} from "@/domain";
 import { roomStateFixture } from "@/domain/contracts/fixtures";
 
 import { RoundExperience } from "./round-experience";
@@ -110,6 +114,42 @@ function unansweredState(deadline = "2026-09-30T12:00:10.000Z"): RoomState {
 }
 
 describe("experiência visual da rodada", () => {
+  it("acompanha um minuto confirmado pelo servidor e só tenta enviar ao expirar", () => {
+    expect(ANSWER_DURATION_SECONDS).toBe(60);
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-09-30T12:00:00Z");
+    const onSubmitAnswer = vi.fn();
+    renderState(unansweredState("2026-09-30T12:01:00.000Z"), {
+      onSubmitAnswer,
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Sua resposta" }), {
+      target: { value: "Eu sigo em frente." },
+    });
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "60 segundos restantes",
+    );
+
+    act(() => vi.advanceTimersByTime(15_000));
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "45 segundos restantes",
+    );
+    expect(onSubmitAnswer).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(44_000));
+    expect(onSubmitAnswer).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(screen.getByRole("timer").getAttribute("aria-label")).toBe(
+      "0 segundos restantes",
+    );
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
+    expect(onSubmitAnswer).toHaveBeenCalledWith(
+      roomStateFixture.public.currentRound!.id,
+      "Eu sigo em frente.",
+    );
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(onSubmitAnswer).toHaveBeenCalledTimes(1);
+  });
+
   it("corrige um relógio cliente adiantado usando o instante recebido do servidor", () => {
     vi.useFakeTimers();
     vi.setSystemTime("2029-09-30T12:00:00Z");

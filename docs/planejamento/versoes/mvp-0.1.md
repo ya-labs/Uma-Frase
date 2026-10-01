@@ -12,7 +12,7 @@ oito rodadas, julgamento por IA, continuidade narrativa, pontuacao e epilogo.
 3. O host inicia quando os dois jogadores estiverem presentes.
 4. A IA gera a situacao inicial.
 5. O jogo revela a situacao e, em seguida, o limite de palavras.
-6. Comeca um cronometro de dez segundos controlado pelo servidor.
+6. Comeca um cronometro de um minuto controlado pelo servidor.
 7. Os jogadores escrevem e enviam uma unica frase.
 8. As respostas permanecem privadas ate ambos enviarem ou o prazo terminar.
 9. A IA escolhe o vencedor, justifica e continua a historia.

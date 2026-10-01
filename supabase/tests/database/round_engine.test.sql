@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(25);
+select plan(29);
 
 select is(private.count_words('Olá, mundo!'), 2, 'attached punctuation does not add words');
 select is(private.count_words(U&'  um\00A0dois\202Ftrês\0009quatro\FEFF '), 4, 'Unicode whitespace matches the shared domain');
@@ -22,9 +22,11 @@ select is((select word_limit::integer from public.rounds where game_id = (select
 select throws_ok($$select public.submit_round_answer('ROUND234','round-host',(select id from public.rounds where game_id=(select id from public.games where code='ROUND234')),'Abro.')$$, '23514', null, 'situation phase rejects answers');
 update public.rounds set situation_ready_at = clock_timestamp() - interval '1 second' where game_id = (select id from public.games where code = 'ROUND234');
 select public.tick_round('ROUND234','round-host');
-select ok((select answer_deadline_at between clock_timestamp() + interval '9 seconds' and clock_timestamp() + interval '10 seconds' from public.rounds where game_id=(select id from public.games where code='ROUND234')), 'ten second server deadline');
+select ok((select answer_deadline_at between clock_timestamp() + interval '59 seconds' and clock_timestamp() + interval '60 seconds' from public.rounds where game_id=(select id from public.games where code='ROUND234')), 'one minute server deadline');
 select throws_ok($$select public.submit_round_answer('ROUND234','round-host',(select id from public.rounds where game_id=(select id from public.games where code='ROUND234')),'um dois três quatro')$$, '23514', null, 'excess words rejected');
 select lives_ok($$select public.submit_round_answer('ROUND234','round-host',(select id from public.rounds where game_id=(select id from public.games where code='ROUND234')),'Abro a porta.')$$, 'valid answer accepted');
+select public.tick_round('ROUND234','round-host');
+select is((select status::text from public.games where code='ROUND234'), 'answering', 'one answer keeps the round open until its deadline');
 select lives_ok($$select public.submit_round_answer('ROUND234','round-host',(select id from public.rounds where game_id=(select id from public.games where code='ROUND234')),'Abro a porta.')$$, 'exact repetition succeeds');
 select throws_ok($$select public.submit_round_answer('ROUND234','round-host',(select id from public.rounds where game_id=(select id from public.games where code='ROUND234')),'Troco a resposta.')$$, '23514', null, 'answer cannot be overwritten');
 update public.rounds set answer_deadline_at = clock_timestamp() - interval '1 second' where game_id=(select id from public.games where code='ROUND234');
@@ -46,5 +48,19 @@ update public.rounds set answer_deadline_at=clock_timestamp()-interval '1 second
 select public.tick_round('EMPTY234','empty-host');
 select is((select sum(score) from public.players where game_id=(select id from public.games where code='EMPTY234')), 0::bigint, 'two absences award no points');
 select ok(not has_table_privilege('anon','public.answers','select') and not has_table_privilege('authenticated','public.answers','select'), 'answers cannot be queried by public clients');
+
+select * from public.create_room_with_host('BOTH2345','Host','both-host');
+select * from public.join_game('BOTH2345','Guest','both-guest');
+select * from public.start_game('BOTH2345','both-host');
+select public.open_round('BOTH2345','both-host','Uma porta','Resumo',5);
+update public.rounds set situation_ready_at=clock_timestamp()-interval '1 second' where game_id=(select id from public.games where code='BOTH2345');
+select public.tick_round('BOTH2345','both-host');
+select public.submit_round_answer('BOTH2345','both-host',(select id from public.rounds where game_id=(select id from public.games where code='BOTH2345')),'Abro a porta.');
+select public.submit_round_answer('BOTH2345','both-guest',(select id from public.rounds where game_id=(select id from public.games where code='BOTH2345')),'Fecho a porta.');
+select is((select status::text from public.games where code='BOTH2345'), 'judging', 'both answers immediately close the round');
+select ok((select answer_deadline_at > clock_timestamp() + interval '59 seconds' from public.rounds where game_id=(select id from public.games where code='BOTH2345')), 'early closure does not wait for the minute to expire');
+select public.tick_round('BOTH2345','both-host');
+select public.tick_round('BOTH2345','both-guest');
+select is((select status::text from public.games where code='BOTH2345'), 'judging', 'repeated events preserve the early closure');
 select * from finish();
 rollback;

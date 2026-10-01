@@ -78,7 +78,7 @@ representam obrigatoriamente uma issue ou branch individual.
 4. Implementar criacao de sala, entrada por codigo e identidade por aba.
 5. Sincronizar lobby, presenca e inicio da partida entre dois clientes.
 6. Implementar geracao da situacao e distribuicao do limite de palavras.
-7. Implementar cronometro autoritativo de dez segundos.
+7. Implementar cronometro autoritativo de um minuto, encerrando antes se ambos enviarem.
 8. Implementar envio privado e validacao compartilhada das respostas.
 9. Integrar Gemini com retorno estruturado e validacao local.
 10. Revelar vencedor, justificativa e continuacao de forma sincronizada.
