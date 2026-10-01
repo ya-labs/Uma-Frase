@@ -3,19 +3,20 @@ import { z } from "zod";
 import { MAX_PLAYERS, MAX_ROUNDS, wordLimitSchema } from "../game";
 
 const identifierSchema = z.string().trim().min(1);
-const meaningfulTextSchema = z.string().trim().min(1);
+const meaningfulTextSchema = z.string().trim().min(1).max(2000);
+const summarySchema = z.string().trim().min(1).max(6000);
 
 export const initialSituationInputSchema = z
   .object({
     roundNumber: z.literal(1),
-    storySummary: z.string(),
+    storySummary: z.string().max(6000),
   })
   .strict();
 
 export const initialSituationResultSchema = z
   .object({
     situation: meaningfulTextSchema,
-    updatedStorySummary: meaningfulTextSchema,
+    updatedStorySummary: summarySchema,
   })
   .strict();
 
@@ -29,7 +30,7 @@ export const judgeAnswerSchema = z
 export const judgeInputSchema = z
   .object({
     roundNumber: z.number().int().min(1).max(MAX_ROUNDS),
-    storySummary: z.string(),
+    storySummary: z.string().max(6000),
     situation: meaningfulTextSchema,
     wordLimit: wordLimitSchema,
     answers: z
@@ -54,7 +55,7 @@ export const judgeResultSchema = z
     reason: meaningfulTextSchema,
     continuation: meaningfulTextSchema,
     nextSituation: meaningfulTextSchema,
-    updatedStorySummary: meaningfulTextSchema,
+    updatedStorySummary: summarySchema,
   })
   .strict();
 
@@ -84,3 +85,20 @@ export type InitialSituationResult = z.infer<
 export type JudgeAnswer = z.infer<typeof judgeAnswerSchema>;
 export type JudgeInput = z.infer<typeof judgeInputSchema>;
 export type JudgeResult = z.infer<typeof judgeResultSchema>;
+
+export const situationInputSchema = z
+  .object({
+    roundNumber: z.number().int().min(1).max(MAX_ROUNDS),
+    storySummary: z.string().max(6000),
+    suggestedSituation: z.string().max(2000).nullable(),
+  })
+  .strict();
+export const epilogueInputSchema = z
+  .object({ storySummary: summarySchema })
+  .strict();
+export const epilogueResultSchema = z
+  .object({ epilogue: z.string().trim().min(1).max(4000) })
+  .strict();
+export type SituationInput = z.infer<typeof situationInputSchema>;
+export type EpilogueInput = z.infer<typeof epilogueInputSchema>;
+export type EpilogueResult = z.infer<typeof epilogueResultSchema>;

@@ -104,7 +104,7 @@ export function resolveRound({
   round,
   players,
   answers,
-  judgedWinnerPlayerId = null,
+  judgedWinnerPlayerId,
 }: ResolveRoundInput): DomainResult<RoundResolution> {
   const rosterResult = validatePlayerRoster(game, players);
 
@@ -180,7 +180,18 @@ export function resolveRound({
       ? eligiblePlayerIds[0]
       : judgedWinnerPlayerId;
 
-  if (winnerPlayerId === null || !eligiblePlayerIds.includes(winnerPlayerId)) {
+  if (winnerPlayerId === null) {
+    return domainSuccess({
+      kind: "judged",
+      winnerPlayerId: null,
+      players: [...players],
+    });
+  }
+
+  if (
+    winnerPlayerId === undefined ||
+    !eligiblePlayerIds.includes(winnerPlayerId)
+  ) {
     return domainFailure(
       "invalid_winner",
       "O vencedor deve ser um jogador elegível que respondeu à rodada.",

@@ -67,7 +67,7 @@ export function repositoryError(error: PostgrestError): RoomRepositoryError {
     return new RoomRepositoryError("collision", message);
   }
 
-  if (error.code === "23514" || error.code === "P0001") {
+  if (["23514", "P0001", "22P02", "22023"].includes(error.code ?? "")) {
     return new RoomRepositoryError("conflict", message);
   }
 

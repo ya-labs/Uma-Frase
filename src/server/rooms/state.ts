@@ -14,7 +14,7 @@ const ROUND_DETAILS_STATUSES = new Set([
 ]);
 
 export function buildRoomState(snapshot: RoomSnapshot): RoomState {
-  const { game, players, currentRound, answers } = snapshot.state;
+  const { game, players, currentRound, answers, control } = snapshot.state;
   const effectiveStatus =
     game.status === "paused" ? game.pausedFrom : game.status;
   const revealIsPublic =
@@ -34,6 +34,12 @@ export function buildRoomState(snapshot: RoomSnapshot): RoomState {
         round: game.round,
         maxRounds: game.maxRounds,
         pausedFrom: game.pausedFrom,
+        ...(game.status === "finished"
+          ? {
+              storySummary: game.storySummary,
+              epilogue: control?.epilogue ?? "",
+            }
+          : {}),
       },
       players: players.map((player) => ({
         id: player.id,
@@ -42,6 +48,15 @@ export function buildRoomState(snapshot: RoomSnapshot): RoomState {
         isConnected: player.isConnected,
         hasAnswered: answers.some((answer) => answer.playerId === player.id),
       })),
+      ...(control
+        ? {
+            control: {
+              revision: control.revision,
+              canRetry: control.canRetry,
+              workError: control.workError,
+            },
+          }
+        : {}),
       currentRound: currentRound
         ? {
             id: currentRound.id,

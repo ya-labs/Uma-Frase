@@ -52,6 +52,8 @@ const publicGameStateSchema = z
     round: z.number().int().min(0).max(MAX_ROUNDS),
     maxRounds: z.literal(MAX_ROUNDS),
     pausedFrom: pausableGameStatusSchema.nullable(),
+    storySummary: z.string().max(6000).optional(),
+    epilogue: z.string().max(4000).optional(),
   })
   .strict();
 
@@ -73,6 +75,14 @@ export const publicRoomStateSchema = z
         }
       }),
     currentRound: publicRoundStateSchema.nullable(),
+    control: z
+      .object({
+        revision: z.number().int().nonnegative(),
+        canRetry: z.boolean(),
+        workError: z.boolean(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((state, context) => {

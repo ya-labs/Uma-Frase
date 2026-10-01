@@ -5,6 +5,9 @@ import type {
   InitialSituationResult,
   JudgeInput,
   JudgeResult,
+  SituationInput,
+  EpilogueInput,
+  EpilogueResult,
 } from "@/domain/contracts";
 
 export interface SituationGenerator {
@@ -15,4 +18,9 @@ export interface SituationGenerator {
 
 export interface RoundJudge {
   judgeRound(input: JudgeInput): Promise<JudgeResult>;
+}
+
+export interface NarrativeProvider extends RoundJudge {
+  generateSituation(input: SituationInput): Promise<InitialSituationResult>;
+  generateEpilogue(input: EpilogueInput): Promise<EpilogueResult>;
 }
