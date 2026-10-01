@@ -63,6 +63,24 @@ function answer(playerId: string, text: string): Answer {
 }
 
 describe("resolveRound", () => {
+  it("não pontua se o julgamento confirmar que ninguém venceu", () => {
+    expect(
+      resolveRound({
+        game,
+        round,
+        players,
+        answers: [answer("player-1", "Uma."), answer("player-2", "Outra.")],
+        judgedWinnerPlayerId: null,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        kind: "judged",
+        winnerPlayerId: null,
+        players: [{ score: 0 }, { score: 0 }],
+      },
+    });
+  });
   it("concede vitória automática contra uma ausência", () => {
     const result = resolveRound({
       game,

@@ -16,6 +16,16 @@ export const serverRoomStateSchema = z
     players: z.array(playerSchema).min(1).max(MAX_PLAYERS),
     currentRound: roundSchema.nullable(),
     answers: z.array(answerSchema).max(MAX_PLAYERS),
+    control: z
+      .object({
+        revision: z.number().int().nonnegative(),
+        canRetry: z.boolean(),
+        workError: z.boolean(),
+        epilogue: z.string().max(4000).nullable(),
+        suggestedSituation: z.string().max(2000).nullable().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

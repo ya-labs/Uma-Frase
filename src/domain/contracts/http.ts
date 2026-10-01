@@ -70,6 +70,9 @@ export const resumeRoomCommandSchema = z
   .object(authenticatedRoomCommandShape)
   .strict();
 
+export const advanceRoomCommandSchema = resolveRoomCommandSchema;
+export const retryRoomCommandSchema = startRoomCommandSchema;
+
 const roomSessionSchema = z
   .object({
     playerToken: playerTokenSchema,
@@ -113,8 +116,26 @@ export const pauseRoomResponseSchema = operationResponseSchema(
 export const resumeRoomResponseSchema = operationResponseSchema(
   roomStateResultSchema,
 );
+export const advanceRoomResponseSchema = operationResponseSchema(
+  roomStateResultSchema,
+);
+export const retryRoomResponseSchema = operationResponseSchema(
+  roomStateResultSchema,
+);
 
 export const roomHttpContracts = {
+  advance: {
+    method: "POST",
+    path: "/api/rooms/:code/advance",
+    commandSchema: advanceRoomCommandSchema,
+    responseSchema: advanceRoomResponseSchema,
+  },
+  retry: {
+    method: "POST",
+    path: "/api/rooms/:code/retry",
+    commandSchema: retryRoomCommandSchema,
+    responseSchema: retryRoomResponseSchema,
+  },
   create: {
     method: "POST",
     path: "/api/rooms",

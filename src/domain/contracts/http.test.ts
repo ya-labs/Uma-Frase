@@ -10,6 +10,15 @@ import {
 import { roomStateFixture } from "./fixtures";
 
 const validCommands = {
+  advance: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+    roundId: "round-1",
+  },
+  retry: {
+    roomCode: "ABCD2345",
+    playerToken: "opaque-token-with-at-least-32-chars",
+  },
   create: { playerName: "Ana" },
   join: { roomCode: "ABCD2345", playerName: "Bruno" },
   start: {
